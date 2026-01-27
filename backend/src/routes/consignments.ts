@@ -1,5 +1,5 @@
 import { Router } from "express";
-import type { Consignment } from "@prisma/client";
+import { Prisma, type Consignment } from "@prisma/client";
 import { prisma } from "../db";
 
 export const consignmentsRouter = Router();
@@ -12,7 +12,7 @@ consignmentsRouter.get("/api/consignments", async (req, res, next) => {
     const searchParam = typeof req.query.search === "string" ? req.query.search.trim() : "";
     const dateParam = typeof req.query.date === "string" ? req.query.date.trim() : "";
 
-    const andFilters = [];
+    const andFilters: Prisma.ConsignmentWhereInput[] = [];
 
     if (activeParam === "1") {
       andFilters.push({ archivedAt: null });
@@ -21,9 +21,9 @@ consignmentsRouter.get("/api/consignments", async (req, res, next) => {
     if (searchParam) {
       andFilters.push({
         OR: [
-          { id: { contains: searchParam, mode: "insensitive" } },
-          { customerNameRaw: { contains: searchParam, mode: "insensitive" } },
-          { destinationRaw: { contains: searchParam, mode: "insensitive" } },
+          { id: { contains: searchParam } },
+          { customerNameRaw: { contains: searchParam } },
+          { destinationRaw: { contains: searchParam } },
         ],
       });
     }
