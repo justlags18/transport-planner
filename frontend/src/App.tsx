@@ -1,5 +1,50 @@
-import { Planner } from "./pages/Planner";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider } from "./context/AuthContext";
+import { ProtectedRoute, ChangePasswordRoute, DeveloperRoute } from "./components/ProtectedRoute";
+import { PageLayout } from "./components/PageLayout";
+import { LoginPage } from "./pages/LoginPage";
+import { ChangePasswordPage } from "./pages/ChangePasswordPage";
+import { TodaysPlanPage } from "./pages/TodaysPlanPage";
+import { ManagementPage } from "./pages/ManagementPage";
+
+const PlaceholderPage = ({ title }: { title: string }) => (
+  <>
+    <h2 className="dashboard-page-title">{title}</h2>
+    <div className="dashboard-page-content" />
+  </>
+);
 
 export const App = () => {
-  return <Planner />;
+  return (
+    <AuthProvider>
+      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route
+            path="/change-password"
+            element={
+              <ChangePasswordRoute>
+                <ChangePasswordPage />
+              </ChangePasswordRoute>
+            }
+          />
+          <Route
+            element={
+              <ProtectedRoute>
+                <PageLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route path="/" element={<TodaysPlanPage />} />
+            <Route path="/overview" element={<PlaceholderPage title="Overview" />} />
+            <Route path="/consignments" element={<PlaceholderPage title="Consignments" />} />
+            <Route path="/fleet" element={<PlaceholderPage title="Fleet" />} />
+            <Route path="/reports" element={<PlaceholderPage title="Reports" />} />
+            <Route path="/management" element={<DeveloperRoute><ManagementPage /></DeveloperRoute>} />
+          </Route>
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
+  );
 };

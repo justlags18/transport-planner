@@ -1,6 +1,13 @@
-import { Router } from "express";
+import { Router, Response } from "express";
 import { z } from "zod";
 import { prisma } from "../db";
+import type { AuthRequest } from "../middleware/auth";
+
+const TRUCK_CLASSES = ["Class1", "Class2", "Vans"] as const;
+
+function canManageLorries(role: string): boolean {
+  return role === "Management" || role === "Developer";
+}
 
 export const lorriesRouter = Router();
 
@@ -11,6 +18,13 @@ const defaultCapacityPallets = (() => {
 
 const createLorrySchema = z.object({
   name: z.string().trim().min(1),
+  truckClass: z.enum(TRUCK_CLASSES).optional().default("Class1"),
+  capacityPallets: z.coerce.number().int().positive().optional(),
+});
+
+const updateLorrySchema = z.object({
+  name: z.string().trim().min(1).optional(),
+  truckClass: z.enum(TRUCK_CLASSES).optional(),
   capacityPallets: z.coerce.number().int().positive().optional(),
 });
 
@@ -63,24 +77,83 @@ lorriesRouter.get("/api/lorries", async (_req, res, next) => {
   }
 });
 
-lorriesRouter.post("/api/lorries", async (req, res, next) => {
+lorriesRouter.post("/api/lorries", async (req: AuthRequest, res: Response, next) => {
   try {
+    if (!canManageLorries(req.user?.role ?? "")) {
+      res.status(403).json({ ok: false, error: "Forbidden: Management or Developer role required" });
+      return;
+    }
     const parsed = createLorrySchema.safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ ok: false, error: "Invalid payload" });
       return;
     }
 
-    const { name, capacityPallets } = parsed.data;
+    const { name, truckClass, capacityPallets } = parsed.data;
 
     const lorry = await prisma.lorry.create({
       data: {
         name,
+        truckClass: truckClass ?? "Class1",
         capacityPallets: capacityPallets ?? defaultCapacityPallets,
       },
     });
 
     res.status(201).json(lorry);
+  } catch (err) {
+    next(err);
+  }
+});
+
+lorriesRouter.patch("/api/lorries/:id", async (req: AuthRequest, res: Response, next) => {
+  try {
+    if (!canManageLorries(req.user?.role ?? "")) {
+      res.status(403).json({ ok: false, error: "Forbidden: Management or Developer role required" });
+      return;
+    }
+    const parsed = updateLorrySchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ ok: false, error: "Invalid payload" });
+      return;
+    }
+
+    const { id } = req.params;
+    const existing = await prisma.lorry.findUnique({ where: { id } });
+    if (!existing) {
+      res.status(404).json({ ok: false, error: "Lorry not found" });
+      return;
+    }
+
+    const lorry = await prisma.lorry.update({
+      where: { id },
+      data: {
+        ...(parsed.data.name !== undefined && { name: parsed.data.name }),
+        ...(parsed.data.truckClass !== undefined && { truckClass: parsed.data.truckClass }),
+        ...(parsed.data.capacityPallets !== undefined && { capacityPallets: parsed.data.capacityPallets }),
+      },
+    });
+
+    res.json(lorry);
+  } catch (err) {
+    next(err);
+  }
+});
+
+lorriesRouter.delete("/api/lorries/:id", async (req: AuthRequest, res: Response, next) => {
+  try {
+    if (!canManageLorries(req.user?.role ?? "")) {
+      res.status(403).json({ ok: false, error: "Forbidden: Management or Developer role required" });
+      return;
+    }
+    const { id } = req.params;
+    const existing = await prisma.lorry.findUnique({ where: { id } });
+    if (!existing) {
+      res.status(404).json({ ok: false, error: "Lorry not found" });
+      return;
+    }
+
+    await prisma.lorry.delete({ where: { id } });
+    res.status(204).send();
   } catch (err) {
     next(err);
   }

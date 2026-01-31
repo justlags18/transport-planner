@@ -8,5 +8,6 @@ backend/prisma/dev.db
 backend/prisma/dev.db-journal
 backend/prisma/*.db
 backend/prisma/*.db-journal
+backend/prisma/prisma/
 .env
 .DS_Store

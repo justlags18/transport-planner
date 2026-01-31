@@ -34,6 +34,7 @@ model Consignment {
 model Lorry {
   id              String       @id @default(cuid())
   name            String
+  truckClass      String       @default("Class1") // Class1 | Class2
   capacityPallets Int
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
@@ -71,4 +72,16 @@ model CustomerProfile {
   emailTo              String?
   emailTemplateSubject String?
   emailTemplateBody    String?
+}
+
+model User {
+  id                 String   @id @default(cuid())
+  email              String   @unique
+  passwordHash       String
+  role               String   // Clerk | Planner | Management | Developer (SQLite has no enums)
+  forcePasswordChange Boolean @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([email])
 }

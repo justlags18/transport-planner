@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 130" fill="none" role="img" aria-label="Transport Planner">
+  <defs>
+    <!-- Trailer face gradient: subtle depth -->
+    <linearGradient id="trailer-face" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#fafbfc"/>
+      <stop offset="100%" stop-color="#f0f2f5"/>
+    </linearGradient>
+    <!-- Cab subtle shade -->
+    <linearGradient id="cab-main" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#a91a28"/>
+      <stop offset="50%" stop-color="#c41e3a"/>
+      <stop offset="100%" stop-color="#b71c1c"/>
+    </linearGradient>
+    <!-- Decal clip: exact trailer main face -->
+    <clipPath id="decal-clip">
+      <path d="M110 40 L110 88 L330 88 L330 40 Q328 38 326 38 L114 38 Q110 39 110 40 Z"/>
+    </clipPath>
+  </defs>
+
+  <!-- Cab (red) – side view with slight depth -->
+  <path d="M22 90 L22 48 Q22 36 34 36 L74 36 L90 26 L98 26 L98 90 Z" fill="url(#cab-main)"/>
+  <path d="M74 36 L74 90 L98 90 L98 36 Z" fill="#b71c1c"/>
+  <!-- Cab window panels -->
+  <rect x="30" y="40" width="16" height="12" rx="1" fill="#87CEEB" opacity="0.9"/>
+  <rect x="50" y="40" width="16" height="12" rx="1" fill="#87CEEB" opacity="0.9"/>
+  <!-- Cab wheels -->
+  <ellipse cx="40" cy="90" rx="16" ry="6" fill="#1a1a1a"/>
+  <ellipse cx="74" cy="90" rx="16" ry="6" fill="#1a1a1a"/>
+
+  <!-- Articulation -->
+  <rect x="98" y="54" width="14" height="28" rx="2" fill="#757575"/>
+
+  <!-- Trailer: 3D box – main face + right edge + top edge -->
+  <path d="M112 40 L112 88 L328 88 L328 40 Q326 38 324 38 L114 38 Q112 39 112 40 Z" fill="url(#trailer-face)" stroke="#e0e2e5" stroke-width="0.6"/>
+  <path d="M328 40 L328 88 L334 86 L334 42 Z" fill="#e8eaed"/>
+  <path d="M112 38 L328 38 L326 36 L114 36 Z" fill="#e8eaed"/>
+
+  <!-- Full-length decal (100% trailer side) – single cohesive wrap -->
+  <g clip-path="url(#decal-clip)">
+    <!-- Left section: large strawberries + foliage -->
+    <path d="M118 52 Q128 44 140 52 Q138 62 130 66 Q122 62 118 52 Z" fill="#2e7d32"/>
+    <ellipse cx="128" cy="58" rx="14" ry="12" fill="#d32f2f"/>
+    <path d="M118 48 Q128 42 138 48 L136 52 Q128 50 120 52 Z" fill="#1b5e20"/>
+    <path d="M142 60 Q152 54 162 60 Q160 68 152 70 Q144 66 142 60 Z" fill="#2e7d32"/>
+    <ellipse cx="152" cy="64" rx="12" ry="10" fill="#c62828"/>
+    <path d="M144 56 Q152 50 160 56 L158 60 Q152 58 146 60 Z" fill="#1b5e20"/>
+    <ellipse cx="168" cy="56" rx="13" ry="11" fill="#e53935"/>
+    <path d="M158 48 Q168 42 178 48 L176 52 Q168 50 160 52 Z" fill="#2e7d32"/>
+    <path d="M122 72 Q132 66 142 72 Q140 78 132 80 Q124 76 122 72 Z" fill="#388e3c"/>
+    <path d="M148 76 Q158 70 168 76 Q166 82 158 84 Q150 80 148 76 Z" fill="#2e7d32"/>
+
+    <!-- Centre section: fresh meat cuts -->
+    <path d="M188 48 Q208 42 228 50 Q226 62 218 68 Q208 64 196 66 Q188 60 188 48 Z" fill="#8d6e63"/>
+    <path d="M198 54 Q214 48 230 56 Q228 66 220 72 Q210 68 200 70 Q198 62 198 54 Z" fill="#a1887f"/>
+    <path d="M212 58 Q226 52 240 60 L238 68 Q226 64 214 66 Q212 62 212 58 Z" fill="#6d4c41"/>
+    <path d="M222 70 Q238 64 252 72 Q250 80 242 84 Q232 78 222 76 Q220 72 222 70 Z" fill="#5d4037"/>
+    <path d="M192 72 Q206 66 220 74 Q218 82 210 86 Q200 80 192 78 Z" fill="#7d5c53"/>
+
+    <!-- Right section: leafy greens – full coverage -->
+    <path d="M258 44 Q272 38 286 46 Q284 56 276 62 Q266 58 258 54 Q256 48 258 44 Z" fill="#43a047"/>
+    <path d="M268 50 Q282 44 296 52 Q294 62 286 68 Q276 64 268 60 Q266 54 268 50 Z" fill="#66bb6a"/>
+    <path d="M278 56 Q292 50 306 58 L304 66 Q292 62 280 64 Q278 58 278 56 Z" fill="#2e7d32"/>
+    <path d="M258 64 Q272 58 286 66 Q284 74 276 78 Q266 74 258 70 Z" fill="#388e3c"/>
+    <path d="M288 68 Q302 62 316 70 Q314 78 306 82 Q296 76 288 74 Z" fill="#4caf50"/>
+    <path d="M268 76 Q282 70 296 78 Q294 86 286 90 L276 86 Q268 82 268 76 Z" fill="#2e7d32"/>
+    <path d="M298 78 Q312 72 324 80 Q322 86 316 88 Q306 84 298 82 Z" fill="#388e3c"/>
+    <path d="M260 82 Q272 76 284 84 Q282 90 274 92 Q264 88 260 84 Z" fill="#43a047"/>
+  </g>
+
+  <!-- Refrigerated ribs (subtle, on trailer face) -->
+  <line x1="134" y1="40" x2="134" y2="88" stroke="#e8e8e8" stroke-width="0.4"/>
+  <line x1="162" y1="40" x2="162" y2="88" stroke="#e8e8e8" stroke-width="0.4"/>
+  <line x1="190" y1="40" x2="190" y2="88" stroke="#e8e8e8" stroke-width="0.4"/>
+  <line x1="258" y1="40" x2="258" y2="88" stroke="#e8e8e8" stroke-width="0.4"/>
+  <line x1="314" y1="40" x2="314" y2="88" stroke="#e8e8e8" stroke-width="0.4"/>
+
+  <!-- Trailer wheels -->
+  <ellipse cx="252" cy="92" rx="14" ry="6" fill="#1a1a1a"/>
+  <ellipse cx="320" cy="92" rx="14" ry="6" fill="#1a1a1a"/>
+
+  <!-- Text: under truck, secondary to graphic -->
+  <text x="210" y="114" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="18" font-weight="600" fill="#E6EEF8" text-anchor="middle" letter-spacing="0.04em">Transport Planner</text>
+</svg>
