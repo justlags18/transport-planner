@@ -1,0 +1,74 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Consignment {
+  id             String   @id
+  customerNameRaw String?
+  customerKey    String?
+  destinationRaw String?
+  destinationKey String?
+  etaIso         String?
+  status         String?
+  palletsFromSite Int?
+  rawJson        String
+  lastSeenAt     DateTime
+  archivedAt     DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  assignments    Assignment[]
+  palletOverride PalletOverride?
+
+  @@index([customerKey])
+  @@index([destinationKey])
+  @@index([status])
+  @@index([lastSeenAt])
+}
+
+model Lorry {
+  id              String       @id @default(cuid())
+  name            String
+  capacityPallets Int
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  assignments     Assignment[]
+
+  @@index([name])
+}
+
+model Assignment {
+  id            String     @id @default(cuid())
+  lorryId       String
+  consignmentId String
+  sortOrder     Int
+
+  lorry         Lorry      @relation(fields: [lorryId], references: [id], onDelete: Cascade)
+  consignment   Consignment @relation(fields: [consignmentId], references: [id], onDelete: Cascade)
+
+  @@unique([lorryId, consignmentId])
+  @@index([lorryId])
+  @@index([consignmentId])
+}
+
+model PalletOverride {
+  consignmentId String @id
+  pallets       Int
+
+  consignment   Consignment @relation(fields: [consignmentId], references: [id], onDelete: Cascade)
+}
+
+model CustomerProfile {
+  customerKey          String  @id
+  displayName          String
+  defaultPallets       Int
+  emailTo              String?
+  emailTemplateSubject String?
+  emailTemplateBody    String?
+}
