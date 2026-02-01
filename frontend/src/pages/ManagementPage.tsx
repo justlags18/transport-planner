@@ -228,22 +228,6 @@ export const ManagementPage = () => {
     }
   }, []);
 
-  useEffect(() => {
-    if (activeTab === "users") loadUsers();
-  }, [activeTab, loadUsers]);
-
-  useEffect(() => {
-    if (activeTab === "trucks") loadLorries();
-  }, [activeTab, loadLorries]);
-
-  useEffect(() => {
-    if (activeTab === "customer-pref") {
-      loadCustomerPrefs();
-      loadAvailableCustomers();
-      loadDeliveryLocations();
-    }
-  }, [activeTab, loadCustomerPrefs, loadAvailableCustomers, loadDeliveryLocations]);
-
   const loadDeliveryLocations = useCallback(async () => {
     setLocationsLoading(true);
     setError("");
@@ -276,6 +260,22 @@ export const ManagementPage = () => {
       setAvailableDestinationsLoading(false);
     }
   }, []);
+
+  useEffect(() => {
+    if (activeTab === "users") loadUsers();
+  }, [activeTab, loadUsers]);
+
+  useEffect(() => {
+    if (activeTab === "trucks") loadLorries();
+  }, [activeTab, loadLorries]);
+
+  useEffect(() => {
+    if (activeTab === "customer-pref") {
+      loadCustomerPrefs();
+      loadAvailableCustomers();
+      loadDeliveryLocations();
+    }
+  }, [activeTab, loadCustomerPrefs, loadAvailableCustomers, loadDeliveryLocations]);
 
   useEffect(() => {
     if (activeTab === "delivery-locations") {
