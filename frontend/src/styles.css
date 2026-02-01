@@ -1130,8 +1130,11 @@ button:disabled {
 }
 
 .consignments-group-mawb {
-  font-size: 0.8rem;
-  color: var(--text-secondary);
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
 }
 
 .consignments-group-meta {
@@ -1147,7 +1150,7 @@ button:disabled {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 34px;
+  min-width: 70px;
   height: 28px;
   padding: 0 10px;
   border-radius: 999px;

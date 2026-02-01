@@ -207,7 +207,7 @@ export const ConsignmentsPage = () => {
                     </div>
                     <div className="consignments-group-meta">
                       <span className="consignments-group-count">
-                        {group.items.length}
+                        Jobs: {group.items.length}
                       </span>
                       <span>ETA {groupEta}</span>
                     </div>
