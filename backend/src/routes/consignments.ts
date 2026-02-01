@@ -82,10 +82,8 @@ consignmentsRouter.get("/api/consignments", async (req, res, next) => {
         try {
           const row = JSON.parse(rawJson) as Record<string, unknown>;
           const computed = computePalletsFromRow(row);
-          if (computed != null) {
-            palletsFromSite = computed;
-            updates.push({ id: item.id, palletsFromSite: computed });
-          }
+          if (computed != null) palletsFromSite = computed;
+          if (computed != null && computed > 0) updates.push({ id: item.id, palletsFromSite: computed });
         } catch {
           // ignore
         }
@@ -103,6 +101,58 @@ consignmentsRouter.get("/api/consignments", async (req, res, next) => {
     }
 
     res.json({ items: itemsWithComputedPallets });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * Backfill palletsFromSite from rawJson for all consignments that have missing pallets.
+ * Call once (e.g. after deploy) to persist computed pallets for every consignment that has rawJson.
+ * Returns counts so you can see how many were fixed vs had no rawJson vs compute returned null.
+ */
+consignmentsRouter.post("/api/consignments/backfill-pallets", async (_req, res, next) => {
+  try {
+    const all = await prisma.consignment.findMany({
+      where: {
+        OR: [{ palletsFromSite: null }, { palletsFromSite: 0 }],
+      },
+      select: { id: true, rawJson: true, palletsFromSite: true },
+    });
+
+    let updated = 0;
+    let noRawJson = 0;
+    let computeNull = 0;
+
+    for (const c of all) {
+      if (!c.rawJson || c.rawJson.trim() === "" || c.rawJson === "{}") {
+        noRawJson += 1;
+        continue;
+      }
+      try {
+        const row = JSON.parse(c.rawJson) as Record<string, unknown>;
+        const computed = computePalletsFromRow(row);
+        if (computed != null && computed > 0) {
+          await prisma.consignment.update({
+            where: { id: c.id },
+            data: { palletsFromSite: computed },
+          });
+          updated += 1;
+        } else {
+          computeNull += 1;
+        }
+      } catch {
+        computeNull += 1;
+      }
+    }
+
+    res.json({
+      ok: true,
+      totalMissing: all.length,
+      updated,
+      noRawJson,
+      computeReturnedNull: computeNull,
+    });
   } catch (err) {
     next(err);
   }

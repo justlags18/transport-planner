@@ -41,6 +41,7 @@ export const getEffectivePallets = async (consignmentId: string): Promise<number
         });
         return computed;
       }
+      if (computed != null) return computed;
     } catch {
       // ignore parse errors
     }

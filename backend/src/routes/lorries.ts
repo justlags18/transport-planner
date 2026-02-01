@@ -70,8 +70,8 @@ lorriesRouter.get("/api/lorries", async (_req, res, next) => {
           try {
             const row = JSON.parse(consignment.rawJson) as Record<string, unknown>;
             const computed = computePalletsFromRow(row);
+            if (computed != null) effectivePallets = computed;
             if (computed != null && computed > 0) {
-              effectivePallets = computed;
               persistPallets.push({ consignmentId: consignment.id, palletsFromSite: computed });
             }
           } catch {

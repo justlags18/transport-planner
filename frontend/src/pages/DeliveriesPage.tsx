@@ -46,6 +46,8 @@ export const DeliveriesPage = () => {
 
   const [selectedUnassignedIds, setSelectedUnassignedIds] = useState<Set<string>>(() => new Set());
   const [activeDragData, setActiveDragData] = useState<ActiveDragData>(null);
+  const [backfillResult, setBackfillResult] = useState<{ updated: number; noRawJson: number; computeReturnedNull: number } | null>(null);
+  const [backfilling, setBackfilling] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -316,6 +318,23 @@ export const DeliveriesPage = () => {
     [lorries, refreshData],
   );
 
+  const handleBackfillPallets = useCallback(async () => {
+    setBackfilling(true);
+    setBackfillResult(null);
+    try {
+      const res = await apiPost<{ ok: boolean; updated: number; noRawJson: number; computeReturnedNull: number }>(
+        "/api/consignments/backfill-pallets",
+        {},
+      );
+      setBackfillResult({ updated: res.updated, noRawJson: res.noRawJson, computeReturnedNull: res.computeReturnedNull });
+      await refreshData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Backfill failed");
+    } finally {
+      setBackfilling(false);
+    }
+  }, [refreshData]);
+
   const activeDragDataForBoard = useMemo(
     () =>
       activeDragData
@@ -367,8 +386,22 @@ export const DeliveriesPage = () => {
               {filteredConsignments.length} job{filteredConsignments.length !== 1 ? "s" : ""}
               {selectedLocation ? ` at ${selectedLocation.displayName}` : " (all)"}
             </span>
+            <button
+              type="button"
+              className="management-btn management-btn-small"
+              onClick={handleBackfillPallets}
+              disabled={backfilling}
+              title="Recompute pallets from backoffice data for all consignments with missing pallets"
+            >
+              {backfilling ? "Backfilling…" : "Backfill pallets"}
+            </button>
           </form>
         </section>
+        {backfillResult != null && (
+          <p className="management-muted" role="status">
+            Backfill: {backfillResult.updated} updated, {backfillResult.noRawJson} had no backoffice data, {backfillResult.computeReturnedNull} could not compute (wrong/missing columns?). Refresh the page to see changes.
+          </p>
+        )}
 
         {loading ? (
           <p className="management-loading">Loading deliveries…</p>
