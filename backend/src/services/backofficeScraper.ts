@@ -18,52 +18,56 @@ const DEBUG = process.env.PML_BACKOFFICE_DEBUG === "1";
 const normalizeHeader = (value: string) =>
   value.replace(/\s+/g, " ").trim().toLowerCase();
 
-const parseNumber = (value: string): number | null => {
-  const cleaned = value.replace(/,/g, "").match(/-?\d+(\.\d+)?/);
+const parseNumber = (value: string | number | null | undefined): number | null => {
+  if (value == null) return null;
+  const s = typeof value === "number" ? String(value) : String(value).trim();
+  if (!s) return null;
+  const cleaned = s.replace(/,/g, "").match(/-?\d+(\.\d+)?/);
   if (!cleaned) return null;
   const num = Number(cleaned[0]);
   return Number.isFinite(num) ? num : null;
 };
 
+function str(row: Record<string, unknown>, key: string): string {
+  const v = row[key];
+  if (v == null) return "";
+  return String(v).trim();
+}
+
+/** Find first value in row where key matches one of the patterns (case-insensitive). */
+function firstMatch(row: Record<string, unknown>, patterns: RegExp[]): string {
+  for (const [key, value] of Object.entries(row)) {
+    if (key.startsWith("_")) continue;
+    const k = key.toLowerCase();
+    if (patterns.some((p) => p.test(k)) && value != null && String(value).trim() !== "") {
+      return String(value).trim();
+    }
+  }
+  return "";
+}
+
 /**
  * Compute pallet count from a backoffice row (same rules as scraper).
  * Used when scraping and when recomputing from stored rawJson for consignments
  * that have missing pallets (e.g. scraped before rules existed or different column names).
+ * Tries explicit key names first, then scans all keys for weight/quantity-like names.
+ * Accepts Record<string, unknown> so parsed JSON with number values works.
  */
-export function computePalletsFromRow(row: Record<string, string>): number | null {
+export function computePalletsFromRow(row: Record<string, unknown>): number | null {
   const productDescription =
-    row["product description"]
-    ?? row["pr desc"]
-    ?? row["product"]
-    ?? row["description"]
-    ?? row["goods description"]
-    ?? "";
+    str(row, "product description") || str(row, "pr desc") || str(row, "product")
+    || str(row, "description") || str(row, "goods description")
+    || firstMatch(row, [/product|description|goods|pr desc/]);
   const packages =
-    row["packages"]
-    ?? row["package"]
-    ?? row["pkgs"]
-    ?? row["packages qty"]
-    ?? row["pc"]
-    ?? row["pcs"]
-    ?? row["no. of packages"]
-    ?? row["no of packages"]
-    ?? row["number of packages"]
-    ?? row["quantity"]
-    ?? row["qty"]
-    ?? row["pieces"]
-    ?? "";
+    str(row, "packages") || str(row, "package") || str(row, "pkgs") || str(row, "packages qty")
+    || str(row, "pc") || str(row, "pcs") || str(row, "no. of packages") || str(row, "no of packages")
+    || str(row, "number of packages") || str(row, "quantity") || str(row, "qty") || str(row, "pieces")
+    || firstMatch(row, [/package|pkgs?|pcs?|qty|piece|quantity|no\.?\s*of/]);
   const weightRaw =
-    row["weight"]
-    ?? row["weight kg"]
-    ?? row["weight (kg)"]
-    ?? row["weight (kgs)"]
-    ?? row["weight kgs"]
-    ?? row["total weight"]
-    ?? row["gross weight"]
-    ?? row["net weight"]
-    ?? row["actual weight"]
-    ?? row["kgs"]
-    ?? "";
+    str(row, "weight") || str(row, "weight kg") || str(row, "weight (kg)") || str(row, "weight (kgs)")
+    || str(row, "weight kgs") || str(row, "total weight") || str(row, "gross weight") || str(row, "net weight")
+    || str(row, "actual weight") || str(row, "kgs")
+    || firstMatch(row, [/weight|kgs?|gross|net\s*weight|actual/]);
   const pieces = packages ? parseNumber(packages) : null;
   const weightKg = weightRaw ? parseNumber(weightRaw) : null;
 
