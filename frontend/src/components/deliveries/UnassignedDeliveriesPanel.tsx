@@ -9,6 +9,9 @@ export type UnassignedDeliveriesPanelItemData = {
   list: DeliveryJobConsignment[];
   selectedIds: Set<string>;
   onToggle: (id: string, shiftKey: boolean, index: number) => void;
+  deliveryLocations: Array<{ id: string; displayName: string }>;
+  customerLocationMap: Record<string, string[]>;
+  onChangeDeliveryLocation: (consignmentId: string, deliveryLocationId: string | null) => void;
 };
 
 type UnassignedDeliveriesPanelProps = {
@@ -17,6 +20,9 @@ type UnassignedDeliveriesPanelProps = {
   selectedIds?: Set<string>;
   onToggleSelect?: (id: string) => void;
   onSelectRange?: (ids: string[]) => void;
+  deliveryLocations?: Array<{ id: string; displayName: string }>;
+  customerLocationMap?: Record<string, string[]>;
+  onChangeDeliveryLocation?: (consignmentId: string, deliveryLocationId: string | null) => void;
 };
 
 function isEtaToday(etaIso: string | null): boolean {
@@ -38,6 +44,9 @@ export const UnassignedDeliveriesPanel = ({
   selectedIds = new Set(),
   onToggleSelect = () => {},
   onSelectRange = () => {},
+  deliveryLocations = [],
+  customerLocationMap = {},
+  onChangeDeliveryLocation = () => {},
 }: UnassignedDeliveriesPanelProps) => {
   const [search, setSearch] = useState("");
   const [filterEtaToday, setFilterEtaToday] = useState(false);
@@ -105,8 +114,8 @@ export const UnassignedDeliveriesPanel = ({
   );
 
   const itemData = useMemo<UnassignedDeliveriesPanelItemData>(
-    () => ({ list: filtered, selectedIds, onToggle: handleToggle }),
-    [filtered, selectedIds, handleToggle],
+    () => ({ list: filtered, selectedIds, onToggle: handleToggle, deliveryLocations, customerLocationMap, onChangeDeliveryLocation }),
+    [filtered, selectedIds, handleToggle, deliveryLocations, customerLocationMap, onChangeDeliveryLocation],
   );
 
   const rowRenderer = useMemo(
@@ -132,6 +141,9 @@ export const UnassignedDeliveriesPanel = ({
               index={index}
               isSelected={isSelected}
               onToggle={data.onToggle}
+              deliveryLocations={data.deliveryLocations}
+              customerLocationMap={data.customerLocationMap}
+              onChangeDeliveryLocation={data.onChangeDeliveryLocation}
             />
           </div>
         );

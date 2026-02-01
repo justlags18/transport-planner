@@ -20,6 +20,7 @@ import type { LorryDTO, AssignmentDTO } from "./Planner";
 type ConsignmentResponse = { items: DeliveryJobConsignment[] };
 type DeliveryLocationDTO = { id: string; displayName: string; destinationKey: string | null; notes: string | null };
 type DeliveryLocationsResponse = { ok: boolean; locations: DeliveryLocationDTO[] };
+type CustomerDeliveryLocationMapResponse = { ok: boolean; map: Record<string, string[]> };
 
 type ConsignmentDragItem = {
   consignmentId: string;
@@ -39,6 +40,7 @@ export const DeliveriesPage = () => {
   const [consignments, setConsignments] = useState<DeliveryJobConsignment[]>([]);
   const [lorries, setLorries] = useState<LorryDTO[]>([]);
   const [deliveryLocations, setDeliveryLocations] = useState<DeliveryLocationDTO[]>([]);
+  const [customerLocationMap, setCustomerLocationMap] = useState<Record<string, string[]>>({});
   const [deliveryLocationFilter, setDeliveryLocationFilter] = useState<string>("all");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -64,15 +66,17 @@ export const DeliveriesPage = () => {
     if (refreshInFlight.current) return;
     refreshInFlight.current = true;
     try {
-      const [consRes, lorriesRes] = await Promise.all([
+      const [consRes, lorriesRes, locRes, mapRes] = await Promise.all([
         apiGet<ConsignmentResponse>("/api/consignments?active=1&deliveryOnly=1"),
         apiGet<LorryDTO[]>("/api/lorries"),
+        apiGet<DeliveryLocationsResponse>("/api/delivery-locations").catch(() => ({ ok: false, locations: [] })),
+        apiGet<CustomerDeliveryLocationMapResponse>("/api/customer-prefs/delivery-location-map").catch(() => ({ ok: false, map: {} })),
       ]);
       setConsignments(consRes.items ?? []);
       setLorries(lorriesRes ?? []);
-      setError(null);
-      const locRes = await apiGet<DeliveryLocationsResponse>("/api/delivery-locations").catch(() => ({ ok: false, locations: [] }));
       setDeliveryLocations(locRes?.locations ?? []);
+      setCustomerLocationMap(mapRes?.map ?? {});
+      setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load data");
     } finally {
@@ -100,11 +104,18 @@ export const DeliveriesPage = () => {
   );
 
   const filteredConsignments = useMemo(() => {
-    if (!selectedLocation?.destinationKey) return consignments;
-    const key = (selectedLocation.destinationKey ?? "").trim().toUpperCase();
-    if (!key) return consignments;
-    return consignments.filter((c) => (c.destinationKey ?? "").trim().toUpperCase() === key);
-  }, [consignments, selectedLocation]);
+    if (deliveryLocationFilter === "all") return consignments;
+    // Filter by customer→location mapping: if customer is linked to this location, show the job
+    // Also show if the consignment has a deliveryLocationId override matching the filter
+    return consignments.filter((c) => {
+      // Check if consignment has a direct override
+      if ((c as any).deliveryLocationId === deliveryLocationFilter) return true;
+      // Check if customer is linked to this location via CustomerPrefDeliveryLocation
+      if (!c.customerKey) return false;
+      const customerLocs = customerLocationMap[c.customerKey] ?? [];
+      return customerLocs.includes(deliveryLocationFilter);
+    });
+  }, [consignments, deliveryLocationFilter, customerLocationMap]);
 
   const assignedConsignmentIds = useMemo(() => {
     const set = new Set<string>();
@@ -456,6 +467,16 @@ export const DeliveriesPage = () => {
                 selectedIds={selectedUnassignedIds}
                 onToggleSelect={toggleSelection}
                 onSelectRange={setSelectionRange}
+                deliveryLocations={deliveryLocations}
+                customerLocationMap={customerLocationMap}
+                onChangeDeliveryLocation={async (consignmentId, deliveryLocationId) => {
+                  try {
+                    await apiPost(`/api/consignments/${consignmentId}/delivery-location`, { deliveryLocationId });
+                    await refreshData();
+                  } catch (err) {
+                    setError(err instanceof Error ? err.message : "Failed to update delivery location");
+                  }
+                }}
               />
               <LorriesBoard lorries={lorries} activeDragData={activeDragDataForBoard} onUnassign={handleUnassign} />
             </div>

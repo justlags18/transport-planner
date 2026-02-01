@@ -191,3 +191,23 @@ customerPrefsRouter.delete("/api/customer-prefs/:id", async (req: AuthRequest, r
     res.status(500).json({ ok: false, error: "Failed to delete customer preference" });
   }
 });
+
+/** Returns a map of customerKey → deliveryLocationIds[] for filtering consignments by delivery location. */
+customerPrefsRouter.get("/api/customer-prefs/delivery-location-map", async (_req: AuthRequest, res: Response) => {
+  try {
+    const prefs = await prisma.customerPref.findMany({
+      where: { customerKey: { not: null }, deliveryType: "deliver" },
+      include: { locations: true },
+    });
+    const map: Record<string, string[]> = {};
+    for (const p of prefs) {
+      if (p.customerKey) {
+        map[p.customerKey] = p.locations.map((l) => l.deliveryLocationId);
+      }
+    }
+    res.json({ ok: true, map });
+  } catch (err) {
+    console.error("Delivery location map error:", err);
+    res.status(500).json({ ok: false, error: "Failed to load delivery location map" });
+  }
+});

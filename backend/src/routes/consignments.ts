@@ -65,6 +65,7 @@ consignmentsRouter.get("/api/consignments", async (req, res, next) => {
         etaIso: true,
         status: true,
         palletsFromSite: true,
+        deliveryLocationId: true,
         rawJson: true,
         lastSeenAt: true,
         archivedAt: true,
@@ -101,6 +102,46 @@ consignmentsRouter.get("/api/consignments", async (req, res, next) => {
     }
 
     res.json({ items: itemsWithComputedPallets });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** Update a consignment's delivery location override. */
+consignmentsRouter.patch("/api/consignments/:id/delivery-location", async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { deliveryLocationId } = req.body;
+    const consignment = await prisma.consignment.findUnique({ where: { id } });
+    if (!consignment) {
+      res.status(404).json({ ok: false, error: "Consignment not found" });
+      return;
+    }
+    const updated = await prisma.consignment.update({
+      where: { id },
+      data: { deliveryLocationId: deliveryLocationId || null },
+      select: {
+        id: true,
+        customerNameRaw: true,
+        customerKey: true,
+        destinationRaw: true,
+        destinationKey: true,
+        observationRaw: true,
+        mawbRaw: true,
+        hawbRaw: true,
+        packagesRaw: true,
+        productDescriptionRaw: true,
+        etaIso: true,
+        status: true,
+        palletsFromSite: true,
+        deliveryLocationId: true,
+        lastSeenAt: true,
+        archivedAt: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+    res.json({ ok: true, consignment: updated });
   } catch (err) {
     next(err);
   }

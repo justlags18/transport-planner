@@ -1029,6 +1029,28 @@ button:disabled {
   white-space: nowrap;
 }
 
+.unassigned-delivery-row-location-select {
+  font-size: 0.75rem;
+  padding: 2px 4px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  cursor: pointer;
+  max-width: 100%;
+  outline: none;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.unassigned-delivery-row-location-select:hover {
+  border-color: var(--border-default);
+  background: var(--bg-elevated);
+}
+
+.unassigned-delivery-row-location-select:focus {
+  border-color: var(--accent);
+}
+
 .unassigned-delivery-row-eta {
   grid-area: eta;
   flex-shrink: 0;

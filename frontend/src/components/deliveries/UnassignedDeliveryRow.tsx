@@ -9,6 +9,9 @@ type UnassignedDeliveryRowProps = {
   index?: number;
   isSelected?: boolean;
   onToggle?: (id: string, shiftKey: boolean, index: number) => void;
+  deliveryLocations?: Array<{ id: string; displayName: string }>;
+  customerLocationMap?: Record<string, string[]>;
+  onChangeDeliveryLocation?: (consignmentId: string, deliveryLocationId: string | null) => void;
 };
 
 /** ETA string to time-only display (e.g. "14:30") or date+time. */
@@ -40,6 +43,9 @@ const UnassignedDeliveryRowInner = ({
   index = 0,
   isSelected = false,
   onToggle,
+  deliveryLocations = [],
+  customerLocationMap = {},
+  onChangeDeliveryLocation,
 }: UnassignedDeliveryRowProps) => {
   const palletsForDrag = consignment.palletsFromSite ?? 0;
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
@@ -60,6 +66,12 @@ const UnassignedDeliveryRowInner = ({
   const pallets = consignment.palletsFromSite ?? 0;
   const missingPallets = pallets === 0;
 
+  // Get available delivery locations for this customer
+  const availableLocationIds = consignment.customerKey ? (customerLocationMap[consignment.customerKey] ?? []) : [];
+  const availableLocations = deliveryLocations.filter((loc) => availableLocationIds.includes(loc.id));
+  const currentLocationId = (consignment as any).deliveryLocationId;
+  const showDropdown = availableLocations.length > 1 || (availableLocations.length === 1 && !currentLocationId);
+
   const handleCheckboxClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     onToggle?.(consignment.id, e.shiftKey, index);
@@ -75,6 +87,16 @@ const UnassignedDeliveryRowInner = ({
       e.stopPropagation();
       onToggle?.(consignment.id, e.shiftKey, index);
     }
+  };
+
+  const handleLocationChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    e.stopPropagation();
+    const value = e.target.value === "" ? null : e.target.value;
+    onChangeDeliveryLocation?.(consignment.id, value);
+  };
+
+  const handleSelectPointerDown = (e: React.PointerEvent) => {
+    e.stopPropagation();
   };
 
   return (
@@ -111,7 +133,25 @@ const UnassignedDeliveryRowInner = ({
       <span className="unassigned-delivery-row-job">{consignment.id}</span>
       <span className="unassigned-delivery-row-client">{consignment.customerNameRaw ?? "—"}</span>
       <span className="unassigned-delivery-row-location">
-        {deliveryLocationDisplay(consignment.destinationKey, consignment.destinationRaw)}
+        {showDropdown && onChangeDeliveryLocation ? (
+          <select
+            className="unassigned-delivery-row-location-select"
+            value={currentLocationId ?? ""}
+            onChange={handleLocationChange}
+            onPointerDown={handleSelectPointerDown}
+            onClick={(e) => e.stopPropagation()}
+            title="Select delivery location for this job"
+          >
+            {!currentLocationId && <option value="">—</option>}
+            {availableLocations.map((loc) => (
+              <option key={loc.id} value={loc.id}>
+                {loc.displayName}
+              </option>
+            ))}
+          </select>
+        ) : (
+          deliveryLocationDisplay(consignment.destinationKey, consignment.destinationRaw)
+        )}
       </span>
       <span className="unassigned-delivery-row-eta">{formatEtaTime(consignment.etaIso)}</span>
       <span className="unassigned-delivery-row-pallets">

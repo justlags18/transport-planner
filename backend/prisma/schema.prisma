@@ -149,6 +149,7 @@ model DeliveryLocation {
   updatedAt    DateTime @updatedAt
 
   prefs        CustomerPrefDeliveryLocation[]
+  consignments Consignment[]
 
   @@index([destinationKey])
 }
