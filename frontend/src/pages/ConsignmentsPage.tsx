@@ -83,9 +83,22 @@ export const ConsignmentsPage = () => {
   const sorted = useMemo(
     () =>
       [...items].sort((a, b) => {
-        const aTime = new Date(a.lastSeenAt).getTime();
-        const bTime = new Date(b.lastSeenAt).getTime();
-        return bTime - aTime;
+        const toEtaMillis = (value: string | null) => {
+          if (!value) return Number.POSITIVE_INFINITY;
+          const parsed = new Date(value).getTime();
+          if (!Number.isNaN(parsed)) return parsed;
+          const timeMatch = value.match(/\b([01]?\d|2[0-3])[: ]([0-5]\d)\b/);
+          if (timeMatch) {
+            const now = new Date();
+            const hh = Number(timeMatch[1]);
+            const mm = Number(timeMatch[2]);
+            const when = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hh, mm, 0, 0);
+            return when.getTime();
+          }
+          return Number.POSITIVE_INFINITY;
+        };
+
+        return toEtaMillis(a.etaIso) - toEtaMillis(b.etaIso);
       }),
     [items],
   );
