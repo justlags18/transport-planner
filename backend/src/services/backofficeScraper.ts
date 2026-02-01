@@ -47,6 +47,26 @@ const parseEtaIso = (dateStr: string, timeStr: string): string | null => {
   return null;
 };
 
+export const extractEtaFromFragment = (fragmentHtml: string): string | null => {
+  const $ = cheerio.load(fragmentHtml);
+  const fragmentText = $.text().replace(/\s+/g, " ").trim();
+  if (!fragmentText) return null;
+
+  const colonMatch = fragmentText.match(/\b([01]?\d|2[0-3])[: ]([0-5]\d)\b/);
+  if (colonMatch) {
+    const hh = colonMatch[1].padStart(2, "0");
+    const mm = colonMatch[2].padStart(2, "0");
+    return `${hh}:${mm}`;
+  }
+
+  const keywordMatch = fragmentText.match(/\b(?:ETA|Arrival)\b[^0-9]{0,12}([01]\d|2[0-3])([0-5]\d)\b/i);
+  if (keywordMatch) {
+    return `${keywordMatch[1]}:${keywordMatch[2]}`;
+  }
+
+  return null;
+};
+
 const readSelectValue = ($select: cheerio.Cheerio<any>): string => {
   if (!$select.length) return "";
   const selected = $select.find("option:selected").attr("value")
@@ -78,6 +98,53 @@ const parseSelectTime = ($cell: cheerio.Cheerio<any>): string | null => {
   const hh = hour.padStart(2, "0");
   const mm = minute.padStart(2, "0");
   return `${hh}:${mm}`;
+};
+
+const asyncPool = async <T, R>(
+  limit: number,
+  items: T[],
+  iterator: (item: T) => Promise<R>,
+): Promise<R[]> => {
+  const results: R[] = [];
+  let nextIndex = 0;
+
+  const workers = new Array(Math.min(limit, items.length)).fill(null).map(async () => {
+    while (nextIndex < items.length) {
+      const currentIndex = nextIndex;
+      nextIndex += 1;
+      results[currentIndex] = await iterator(items[currentIndex]);
+    }
+  });
+
+  await Promise.all(workers);
+  return results;
+};
+
+const fetchFlightInfoMap = async (
+  client: ReturnType<typeof wrapper>,
+  baseUrl: string,
+  recordIds: string[],
+): Promise<Map<string, string>> => {
+  const uniqueIds = Array.from(new Set(recordIds)).filter(Boolean);
+  if (!uniqueIds.length) return new Map();
+
+  const now = Date.now();
+  const fetchOne = async (recordId: string) => {
+    const url = new URL(`getflight.asp?ID=${encodeURIComponent(recordId)}&time=${now}`, baseUrl).toString();
+    const res = await client.get(url);
+    const fragment = res.data as string;
+    const eta = extractEtaFromFragment(fragment);
+    return { recordId, eta };
+  };
+
+  const results = await asyncPool(5, uniqueIds, fetchOne);
+  const map = new Map<string, string>();
+  for (const result of results) {
+    if (result.eta) {
+      map.set(result.recordId, result.eta);
+    }
+  }
+  return map;
 };
 
 const getHeaderMap = (
@@ -125,6 +192,13 @@ const extractRows = (
           ? dataTime.trim()
           : (selectedTime ?? (cellText || titleText.trim()));
       record[key] = value;
+
+      if ($(cell).attr("data-id") === "flightinfo") {
+        const recordId = $(cell).attr("data-recordid") ?? "";
+        if (recordId) {
+          record["_recordid"] = recordId;
+        }
+      }
     });
     rows.push(record);
   });
@@ -226,7 +300,16 @@ export const fetchAndUpsertConsignments = async (): Promise<number> => {
     if (!table) {
       continue;
     }
-    rows.push(...extractRows(table, $));
+    const pageRows = extractRows(table, $);
+    const recordIds = pageRows.map((row) => row["_recordid"]).filter(Boolean);
+    const etaMap = await fetchFlightInfoMap(client, url, recordIds);
+    for (const row of pageRows) {
+      const recordId = row["_recordid"];
+      if (recordId && etaMap.has(recordId)) {
+        row["eta"] = etaMap.get(recordId) ?? row["eta"];
+      }
+    }
+    rows.push(...pageRows);
   }
   if (!rows.length) {
     throw new Error("Could not find consignments table");
