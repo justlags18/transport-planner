@@ -40,7 +40,10 @@ const parseEtaIso = (dateStr: string, timeStr: string, deliveryStr: string): str
   return null;
 };
 
-const getHeaderMap = ($table: cheerio.Cheerio<cheerio.Element>): string[] => {
+const getHeaderMap = (
+  $table: cheerio.Cheerio<any>,
+  $: cheerio.CheerioAPI,
+): string[] => {
   const headerCells = $table.find("thead tr").first().find("th");
   if (headerCells.length) {
     return headerCells.map((_, el) => normalizeHeader($(el).text())).get();
@@ -49,8 +52,11 @@ const getHeaderMap = ($table: cheerio.Cheerio<cheerio.Element>): string[] => {
   return firstRow.map((_, el) => normalizeHeader($(el).text())).get();
 };
 
-const extractRows = ($table: cheerio.Cheerio<cheerio.Element>): BackofficeRow[] => {
-  const headers = getHeaderMap($table);
+const extractRows = (
+  $table: cheerio.Cheerio<any>,
+  $: cheerio.CheerioAPI,
+): BackofficeRow[] => {
+  const headers = getHeaderMap($table, $);
   const rows: BackofficeRow[] = [];
 
   const bodyRows = $table.find("tbody tr");
@@ -60,7 +66,7 @@ const extractRows = ($table: cheerio.Cheerio<cheerio.Element>): BackofficeRow[] 
     const cells = $(row).find("td");
     if (!cells.length) return;
     const record: BackofficeRow = {};
-    cells.each((idx, cell) => {
+    cells.each((idx: number, cell: any) => {
       const key = headers[idx] ?? `col_${idx}`;
       const value = $(cell).text().replace(/\s+/g, " ").trim();
       record[key] = value;
@@ -71,7 +77,7 @@ const extractRows = ($table: cheerio.Cheerio<cheerio.Element>): BackofficeRow[] 
   return rows;
 };
 
-const pickTable = ($: cheerio.CheerioAPI): cheerio.Cheerio<cheerio.Element> | null => {
+const pickTable = ($: cheerio.CheerioAPI): cheerio.Cheerio<any> | null => {
   const tables = $("table");
   if (!tables.length) return null;
   const match = tables.filter((_, table) => {
@@ -156,7 +162,7 @@ export const fetchAndUpsertConsignments = async (): Promise<number> => {
     throw new Error("Could not find consignments table");
   }
 
-  const rows = extractRows(table);
+  const rows = extractRows(table, $);
   let upserted = 0;
   const now = new Date();
 
