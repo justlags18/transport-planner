@@ -765,20 +765,28 @@ button:disabled {
 }
 
 .dashboard-theme-toggle {
+  position: fixed;
+  left: 16px;
+  bottom: 16px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 40px;
   height: 40px;
   padding: 0;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(15, 20, 25, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 10px;
-  color: #94a3b8;
+  color: #e2e8f0;
   cursor: pointer;
   transition: background 0.15s, color 0.15s, border-color 0.15s;
+  z-index: 6;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.35);
 }
 
+.dashboard-sidebar--collapsed .dashboard-theme-toggle {
+  left: 12px;
+}
 .dashboard-theme-toggle:hover {
   background: rgba(255, 255, 255, 0.1);
   color: #e2e8f0;
