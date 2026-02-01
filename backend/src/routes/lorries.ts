@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "../db";
 import type { AuthRequest } from "../middleware/auth";
 import { syncLorryStatusFromSchedule } from "../services/lorryStatusSync";
+import { computePalletsFromRow } from "../services/backofficeScraper";
 
 const TRUCK_CLASSES = ["Class1", "Class2", "Vans"] as const;
 
@@ -61,8 +62,17 @@ lorriesRouter.get("/api/lorries", async (_req, res, next) => {
       const effectiveStatus = statusByLorryId.get(lorry.id) ?? lorry.status ?? "on";
       const assignments = lorry.assignments.map((assignment) => {
         const { consignment } = assignment;
-        const effectivePallets =
+        let effectivePallets =
           consignment.palletOverride?.pallets ?? consignment.palletsFromSite ?? 0;
+        if (effectivePallets === 0 && consignment.rawJson) {
+          try {
+            const row = JSON.parse(consignment.rawJson) as Record<string, string>;
+            const computed = computePalletsFromRow(row);
+            if (computed != null && computed > 0) effectivePallets = computed;
+          } catch {
+            // ignore
+          }
+        }
 
         const { rawJson: _rawJson, palletOverride: _palletOverride, ...consignmentDto } =
           consignment;

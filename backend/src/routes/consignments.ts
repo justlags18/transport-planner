@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { Prisma, type Consignment } from "@prisma/client";
 import { prisma } from "../db";
+import { computePalletsFromRow } from "../services/backofficeScraper";
 
 export const consignmentsRouter = Router();
 
@@ -64,6 +65,7 @@ consignmentsRouter.get("/api/consignments", async (req, res, next) => {
         etaIso: true,
         status: true,
         palletsFromSite: true,
+        rawJson: true,
         lastSeenAt: true,
         archivedAt: true,
         createdAt: true,
@@ -71,7 +73,23 @@ consignmentsRouter.get("/api/consignments", async (req, res, next) => {
       },
     });
 
-    res.json({ items: items as ConsignmentDTO[] });
+    // When palletsFromSite is missing, recompute from stored backoffice row so UI gets a value
+    const itemsWithComputedPallets: ConsignmentDTO[] = items.map((item) => {
+      const { rawJson, ...rest } = item;
+      let palletsFromSite = rest.palletsFromSite;
+      if ((palletsFromSite == null || palletsFromSite === 0) && rawJson) {
+        try {
+          const row = JSON.parse(rawJson) as Record<string, string>;
+          const computed = computePalletsFromRow(row);
+          if (computed != null) palletsFromSite = computed;
+        } catch {
+          // ignore
+        }
+      }
+      return { ...rest, palletsFromSite };
+    });
+
+    res.json({ items: itemsWithComputedPallets });
   } catch (err) {
     next(err);
   }

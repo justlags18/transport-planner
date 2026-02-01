@@ -25,6 +25,69 @@ const parseNumber = (value: string): number | null => {
   return Number.isFinite(num) ? num : null;
 };
 
+/**
+ * Compute pallet count from a backoffice row (same rules as scraper).
+ * Used when scraping and when recomputing from stored rawJson for consignments
+ * that have missing pallets (e.g. scraped before rules existed or different column names).
+ */
+export function computePalletsFromRow(row: Record<string, string>): number | null {
+  const productDescription =
+    row["product description"]
+    ?? row["pr desc"]
+    ?? row["product"]
+    ?? row["description"]
+    ?? row["goods description"]
+    ?? "";
+  const packages =
+    row["packages"]
+    ?? row["package"]
+    ?? row["pkgs"]
+    ?? row["packages qty"]
+    ?? row["pc"]
+    ?? row["pcs"]
+    ?? row["no. of packages"]
+    ?? row["no of packages"]
+    ?? row["number of packages"]
+    ?? row["quantity"]
+    ?? row["qty"]
+    ?? row["pieces"]
+    ?? "";
+  const weightRaw =
+    row["weight"]
+    ?? row["weight kg"]
+    ?? row["weight (kg)"]
+    ?? row["weight (kgs)"]
+    ?? row["weight kgs"]
+    ?? row["total weight"]
+    ?? row["gross weight"]
+    ?? row["net weight"]
+    ?? row["actual weight"]
+    ?? row["kgs"]
+    ?? "";
+  const pieces = packages ? parseNumber(packages) : null;
+  const weightKg = weightRaw ? parseNumber(weightRaw) : null;
+
+  const isFlowers =
+    productDescription.trim().toLowerCase().includes("flowers") &&
+    pieces != null &&
+    pieces > 0;
+
+  const weightPerPiece =
+    pieces != null && pieces > 0 && weightKg != null && weightKg > 0
+      ? weightKg / pieces
+      : null;
+  const isPmc = weightPerPiece != null && weightPerPiece > 1500;
+  const isAke =
+    weightPerPiece != null &&
+    weightPerPiece >= 650 &&
+    weightPerPiece <= 1500;
+
+  if (isFlowers) return Math.ceil(pieces! / 24);
+  if (isPmc && pieces != null) return 6 * pieces;
+  if (isAke && pieces != null) return 3 * pieces;
+  return pieces;
+}
+
 const parseEtaIso = (dateStr: string, timeStr: string): string | null => {
   const timeLabel = timeStr.trim();
   if (timeLabel) {
@@ -409,42 +472,7 @@ export const fetchAndUpsertConsignments = async (): Promise<number> => {
       ?? row["pc"]
       ?? row["pcs"]
       ?? "";
-    const weightRaw =
-      row["weight"]
-      ?? row["weight kg"]
-      ?? row["weight (kg)"]
-      ?? row["total weight"]
-      ?? row["weight kgs"]
-      ?? row["gross weight"]
-      ?? "";
-    const pieces = packages ? parseNumber(packages) : null;
-    const weightKg = weightRaw ? parseNumber(weightRaw) : null;
-
-    // Flowers rule: product description says "flowers" → pallets = PCs ÷ 24 (always round up)
-    const isFlowers =
-      productDescription.trim().toLowerCase().includes("flowers") &&
-      pieces != null &&
-      pieces > 0;
-
-    // Weight-based pallet rules (ULDs/PCs): PMC (>1500 kg/piece) = 6 pallets each; AKE (650–1500 kg/piece) = 3 pallets each
-    const weightPerPiece =
-      pieces != null && pieces > 0 && weightKg != null && weightKg > 0
-        ? weightKg / pieces
-        : null;
-    const isPmc = weightPerPiece != null && weightPerPiece > 1500;
-    const isAke =
-      weightPerPiece != null &&
-      weightPerPiece >= 650 &&
-      weightPerPiece <= 1500;
-
-    // Pallet amounts from division are always rounded up
-    const palletsFromSite: number | null = isFlowers
-      ? Math.ceil(pieces! / 24)
-      : isPmc && pieces != null
-        ? 6 * pieces
-        : isAke && pieces != null
-          ? 3 * pieces
-          : pieces;
+    const palletsFromSite = computePalletsFromRow(row);
 
     const status = row["status 1"] ?? row["status"] ?? "";
 
