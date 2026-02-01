@@ -1124,6 +1124,42 @@ button:disabled {
   font-weight: 600;
 }
 
+.fleet-card-status {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+
+.fleet-card-status.on {
+  color: #37d27a;
+}
+
+.fleet-card-status.off {
+  color: #f05a5a;
+}
+
+.fleet-card-toggle {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.fleet-toggle-btn {
+  border: 1px solid var(--border-default);
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 0.75rem;
+}
+
+.fleet-toggle-hint {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
 .fleet-card-badge {
   font-size: 0.7rem;
   color: var(--text-secondary);
@@ -1139,6 +1175,25 @@ button:disabled {
   justify-content: space-between;
   font-size: 0.8rem;
   color: var(--text-secondary);
+}
+
+.fleet-card-bar {
+  height: 10px;
+  border-radius: 999px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  overflow: hidden;
+}
+
+.fleet-card-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #4b6fff, #7a6bff);
+}
+
+.fleet-card-footnote {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  text-align: right;
 }
 
 @media (max-width: 1200px) {
