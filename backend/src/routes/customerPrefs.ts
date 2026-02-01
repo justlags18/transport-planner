@@ -10,6 +10,7 @@ const createCustomerPrefSchema = z.object({
   customerKey: z.string().trim().optional(),
   deliveryType: z.enum(DELIVERY_TYPES),
   notes: z.string().trim().optional(),
+  deliveryLocationIds: z.array(z.string()).optional(),
 });
 
 const updateCustomerPrefSchema = z.object({
@@ -80,7 +81,7 @@ customerPrefsRouter.post("/api/customer-prefs", async (req: AuthRequest, res: Re
       return;
     }
 
-    const { displayName, customerKey, deliveryType, notes } = parsed.data;
+    const { displayName, customerKey, deliveryType, notes, deliveryLocationIds } = parsed.data;
 
     const pref = await prisma.customerPref.create({
       data: {
@@ -91,7 +92,29 @@ customerPrefsRouter.post("/api/customer-prefs", async (req: AuthRequest, res: Re
       },
     });
 
-    res.status(201).json({ ok: true, pref });
+    if (deliveryLocationIds && deliveryLocationIds.length > 0) {
+      await prisma.customerPrefDeliveryLocation.createMany({
+        data: deliveryLocationIds.map((deliveryLocationId) => ({
+          customerPrefId: pref.id,
+          deliveryLocationId,
+        })),
+      });
+    }
+
+    const prefWithLocations = await prisma.customerPref.findUnique({
+      where: { id: pref.id },
+      include: { locations: { include: { deliveryLocation: true } } },
+    });
+    const prefResponse = prefWithLocations
+      ? {
+          ...prefWithLocations,
+          deliveryLocationIds: prefWithLocations.locations.map((l) => l.deliveryLocationId),
+          deliveryLocations: prefWithLocations.locations.map((l) => ({ id: l.deliveryLocation.id, displayName: l.deliveryLocation.displayName })),
+          locations: undefined,
+        }
+      : { ...pref, deliveryLocationIds: [], deliveryLocations: [] };
+
+    res.status(201).json({ ok: true, pref: prefResponse });
   } catch (err) {
     console.error("Create customer pref error:", err);
     res.status(500).json({ ok: false, error: "Failed to create customer preference" });

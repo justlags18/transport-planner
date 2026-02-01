@@ -120,6 +120,7 @@ export const ManagementPage = () => {
   const [prefsLoading, setPrefsLoading] = useState(false);
   const [prefDeliveryType, setPrefDeliveryType] = useState<DeliveryType>("deliver");
   const [prefNotes, setPrefNotes] = useState("");
+  const [addPrefLocationIds, setAddPrefLocationIds] = useState<string[]>([]);
   const [addingPref, setAddingPref] = useState(false);
   const [editingPrefId, setEditingPrefId] = useState<string | null>(null);
   const [editPrefDisplayName, setEditPrefDisplayName] = useState("");
@@ -415,6 +416,7 @@ export const ManagementPage = () => {
         customerKey: customer.customerKey,
         deliveryType: prefDeliveryType,
         notes: prefNotes.trim() || undefined,
+        deliveryLocationIds: prefDeliveryType === "deliver" ? addPrefLocationIds : [],
       });
       if (res.ok && res.pref) {
         setPrefs((prev) =>
@@ -427,6 +429,7 @@ export const ManagementPage = () => {
         setSelectedClientKey("");
         setPrefDeliveryType("deliver");
         setPrefNotes("");
+        setAddPrefLocationIds([]);
         loadAvailableCustomers();
       }
     } catch (e) {
@@ -475,6 +478,12 @@ export const ManagementPage = () => {
 
   const togglePrefLocation = (locationId: string) => {
     setEditPrefLocationIds((prev) =>
+      prev.includes(locationId) ? prev.filter((id) => id !== locationId) : [...prev, locationId]
+    );
+  };
+
+  const toggleAddPrefLocation = (locationId: string) => {
+    setAddPrefLocationIds((prev) =>
       prev.includes(locationId) ? prev.filter((id) => id !== locationId) : [...prev, locationId]
     );
   };
@@ -989,6 +998,27 @@ export const ManagementPage = () => {
                     ))}
                   </select>
                 </label>
+                {prefDeliveryType === "deliver" && (
+                  <label>
+                    Delivery locations
+                    <div className="management-location-checkboxes">
+                      {locations.length === 0 ? (
+                        <span className="management-muted">Add locations in Delivery Locations tab first</span>
+                      ) : (
+                        locations.map((loc) => (
+                          <label key={loc.id} className="management-checkbox-label">
+                            <input
+                              type="checkbox"
+                              checked={addPrefLocationIds.includes(loc.id)}
+                              onChange={() => toggleAddPrefLocation(loc.id)}
+                            />
+                            <span>{loc.displayName}</span>
+                          </label>
+                        ))
+                      )}
+                    </div>
+                  </label>
+                )}
                 <label>
                   Notes (optional)
                   <input
