@@ -1421,9 +1421,52 @@ button:disabled {
 .lorries-board-column-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
   flex: 1;
   min-height: 0;
+}
+
+/* Delivery location group within a lorry column */
+.lorries-board-location-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: var(--bg-elevated);
+  border-radius: var(--radius-md);
+  padding: 8px;
+  border: 1px solid var(--border-subtle);
+}
+
+.lorries-board-location-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  background: var(--accent-muted);
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.lorries-board-location-header-icon {
+  font-size: 0.85rem;
+  line-height: 1;
+}
+
+.lorries-board-location-header-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lorries-board-location-header-count {
+  font-weight: 400;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  white-space: nowrap;
 }
 
 .lorries-board-assignment {

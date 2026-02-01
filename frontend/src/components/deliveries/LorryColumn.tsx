@@ -1,8 +1,47 @@
-import { memo } from "react";
+import { memo, useMemo } from "react";
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { AssignmentDTO, LorryDTO } from "../../pages/Planner";
+
+type DeliveryLocationInfo = { id: string; displayName: string };
+
+/** Group assignments by delivery location. Returns array of groups with header info. */
+function groupAssignmentsByLocation(
+  assignments: AssignmentDTO[],
+  deliveryLocations: DeliveryLocationInfo[]
+): Array<{ locationId: string; locationName: string; assignments: AssignmentDTO[] }> {
+  const locationMap = new Map(deliveryLocations.map((l) => [l.id, l.displayName]));
+  const groups = new Map<string, AssignmentDTO[]>();
+  
+  for (const assignment of assignments) {
+    const c = assignment.consignment;
+    // Use deliveryLocationId if set, otherwise fall back to destinationKey or "unknown"
+    const locationId = (c as any).deliveryLocationId || c.destinationKey || "unknown";
+    if (!groups.has(locationId)) {
+      groups.set(locationId, []);
+    }
+    groups.get(locationId)!.push(assignment);
+  }
+  
+  // Convert to array with location names
+  const result: Array<{ locationId: string; locationName: string; assignments: AssignmentDTO[] }> = [];
+  for (const [locationId, groupAssignments] of groups) {
+    // Get display name: from deliveryLocations map, or fall back to destinationRaw, or the ID itself
+    let locationName = locationMap.get(locationId);
+    if (!locationName && groupAssignments.length > 0) {
+      const c = groupAssignments[0].consignment;
+      locationName = c.destinationRaw?.trim() || c.destinationKey?.trim() || "Unknown Location";
+    }
+    result.push({
+      locationId,
+      locationName: locationName || locationId,
+      assignments: groupAssignments,
+    });
+  }
+  
+  return result;
+}
 
 export type ActiveDragData = { pallets: number } | null;
 
@@ -22,11 +61,13 @@ type LorryColumnProps = {
   missingPalletsFallback?: number;
   /** Called when a job is removed from this lorry (returns to unassigned). */
   onUnassign?: (consignmentId: string) => void;
+  /** Delivery locations for grouping headers. */
+  deliveryLocations?: DeliveryLocationInfo[];
 };
 
 const PLACEHOLDER_SLOT_COUNT = 4;
 
-const LorryColumnInner = memo(({ lorry, activeDragData = null, missingPalletsFallback = 1, onUnassign }: LorryColumnProps) => {
+const LorryColumnInner = memo(({ lorry, activeDragData = null, missingPalletsFallback = 1, onUnassign, deliveryLocations = [] }: LorryColumnProps) => {
   const { setNodeRef, isOver } = useDroppable({
     id: `lorry:${lorry.id}`,
     data: {
@@ -53,6 +94,12 @@ const LorryColumnInner = memo(({ lorry, activeDragData = null, missingPalletsFal
 
   const status = lorry.status ?? "on";
   const statusLabel = status === "on" ? "ON ROAD" : "IDLE";
+
+  // Group assignments by delivery location
+  const groupedAssignments = useMemo(
+    () => groupAssignmentsByLocation(lorry.assignments, deliveryLocations),
+    [lorry.assignments, deliveryLocations]
+  );
 
   return (
     <section
@@ -120,14 +167,25 @@ const LorryColumnInner = memo(({ lorry, activeDragData = null, missingPalletsFal
             strategy={verticalListSortingStrategy}
           >
             <div className="lorries-board-column-list">
-              {lorry.assignments.map((assignment) => (
-                <AssignmentRow
-                  key={assignment.id}
-                  assignment={assignment}
-                  lorryId={lorry.id}
-                  showMissingPalletsChip
-                  onUnassign={onUnassign}
-                />
+              {groupedAssignments.map((group) => (
+                <div key={group.locationId} className="lorries-board-location-group">
+                  <div className="lorries-board-location-header">
+                    <span className="lorries-board-location-header-icon" aria-hidden>📍</span>
+                    <span className="lorries-board-location-header-name">{group.locationName}</span>
+                    <span className="lorries-board-location-header-count">
+                      {group.assignments.length} job{group.assignments.length !== 1 ? "s" : ""}
+                    </span>
+                  </div>
+                  {group.assignments.map((assignment) => (
+                    <AssignmentRow
+                      key={assignment.id}
+                      assignment={assignment}
+                      lorryId={lorry.id}
+                      showMissingPalletsChip
+                      onUnassign={onUnassign}
+                    />
+                  ))}
+                </div>
               ))}
             </div>
           </SortableContext>

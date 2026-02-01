@@ -478,7 +478,7 @@ export const DeliveriesPage = () => {
                   }
                 }}
               />
-              <LorriesBoard lorries={lorries} activeDragData={activeDragDataForBoard} onUnassign={handleUnassign} />
+              <LorriesBoard lorries={lorries} activeDragData={activeDragDataForBoard} onUnassign={handleUnassign} deliveryLocations={deliveryLocations} />
             </div>
             <DragOverlay dropAnimation={null}>
               {activeDragData?.type === "consignment" ? (

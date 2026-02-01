@@ -2,6 +2,8 @@ import { memo } from "react";
 import type { LorryDTO } from "../../pages/Planner";
 import { LorryColumn, type ActiveDragData } from "./LorryColumn";
 
+type DeliveryLocationInfo = { id: string; displayName: string };
+
 type LorriesBoardProps = {
   lorries: LorryDTO[];
   activeDragData?: ActiveDragData;
@@ -9,13 +11,15 @@ type LorriesBoardProps = {
   missingPalletsFallback?: number;
   /** Called when a job is removed from a lorry (returns to unassigned). */
   onUnassign?: (consignmentId: string) => void;
+  /** Delivery locations for grouping headers. */
+  deliveryLocations?: DeliveryLocationInfo[];
 };
 
 /**
  * Renders lorries as vertical columns in a horizontally scrollable board.
  * Each column shows truck reg, status badge, capacity bar, and a drop zone for jobs.
  */
-const LorriesBoardInner = ({ lorries, activeDragData = null, missingPalletsFallback = 1, onUnassign }: LorriesBoardProps) => {
+const LorriesBoardInner = ({ lorries, activeDragData = null, missingPalletsFallback = 1, onUnassign, deliveryLocations = [] }: LorriesBoardProps) => {
   if (lorries.length === 0) {
     return (
       <div className="lorries-board lorries-board--empty">
@@ -34,6 +38,7 @@ const LorriesBoardInner = ({ lorries, activeDragData = null, missingPalletsFallb
             activeDragData={activeDragData}
             missingPalletsFallback={missingPalletsFallback}
             onUnassign={onUnassign}
+            deliveryLocations={deliveryLocations}
           />
         ))}
       </div>
