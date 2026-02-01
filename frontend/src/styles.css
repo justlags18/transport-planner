@@ -800,12 +800,9 @@ button:disabled {
 .dashboard-sidebar-link-label {
   transition: opacity 0.2s ease, width 0.2s ease;
   white-space: nowrap;
-}
-
-.dashboard-sidebar-link-abbrev {
   font-weight: 700;
-  font-size: 0.82rem;
-  letter-spacing: 0.12em;
+  font-size: 0.85rem;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   font-family: "Plus Jakarta Sans", "Segoe UI", sans-serif;
 }
@@ -814,11 +811,6 @@ button:disabled {
   justify-content: center;
 }
 
-.dashboard-sidebar--collapsed .dashboard-sidebar-link-label {
-  opacity: 0;
-  width: 0;
-  overflow: hidden;
-}
 
 .dashboard-sidebar-link:hover {
   background: rgba(255, 255, 255, 0.06);

@@ -22,14 +22,6 @@ export const Sidebar = () => {
   const { user } = useAuth();
   const role = user?.role ?? "Clerk";
   const [collapsed, setCollapsed] = useState(false);
-  const abbreviations: Record<string, string> = {
-    "/overview": "OVR",
-    "/": "PLAN",
-    "/consignments": "CON",
-    "/fleet": "FLT",
-    "/reports": "RPT",
-    "/management": "MGT",
-  };
 
   return (
     <aside
@@ -57,13 +49,7 @@ export const Sidebar = () => {
             title={collapsed ? label : undefined}
           >
             <span className="dashboard-sidebar-link-label">
-              {collapsed ? (
-                <span className="dashboard-sidebar-link-abbrev">
-                  {abbreviations[path] ?? label.slice(0, 3).toUpperCase()}
-                </span>
-              ) : (
-                label
-              )}
+              {collapsed ? label.trim().charAt(0).toUpperCase() : label}
             </span>
           </NavLink>
         ))}
