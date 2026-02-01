@@ -46,7 +46,13 @@ export const DeliveriesPage = () => {
 
   const [selectedUnassignedIds, setSelectedUnassignedIds] = useState<Set<string>>(() => new Set());
   const [activeDragData, setActiveDragData] = useState<ActiveDragData>(null);
-  const [backfillResult, setBackfillResult] = useState<{ updated: number; noRawJson: number; computeReturnedNull: number } | null>(null);
+  const [backfillResult, setBackfillResult] = useState<{
+    updated: number;
+    noRawJson: number;
+    computeReturnedNull: number;
+    sampleRowKeys?: string[];
+    sampleRow?: Record<string, string>;
+  } | null>(null);
   const [backfilling, setBackfilling] = useState(false);
 
   const sensors = useSensors(
@@ -322,11 +328,21 @@ export const DeliveriesPage = () => {
     setBackfilling(true);
     setBackfillResult(null);
     try {
-      const res = await apiPost<{ ok: boolean; updated: number; noRawJson: number; computeReturnedNull: number }>(
-        "/api/consignments/backfill-pallets",
-        {},
-      );
-      setBackfillResult({ updated: res.updated, noRawJson: res.noRawJson, computeReturnedNull: res.computeReturnedNull });
+      const res = await apiPost<{
+        ok: boolean;
+        updated: number;
+        noRawJson: number;
+        computeReturnedNull: number;
+        sampleRowKeys?: string[];
+        sampleRow?: Record<string, string>;
+      }>("/api/consignments/backfill-pallets", {});
+      setBackfillResult({
+        updated: res.updated,
+        noRawJson: res.noRawJson,
+        computeReturnedNull: res.computeReturnedNull,
+        sampleRowKeys: res.sampleRowKeys,
+        sampleRow: res.sampleRow,
+      });
       await refreshData();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Backfill failed");
@@ -398,9 +414,27 @@ export const DeliveriesPage = () => {
           </form>
         </section>
         {backfillResult != null && (
-          <p className="management-muted" role="status">
-            Backfill: {backfillResult.updated} updated, {backfillResult.noRawJson} had no backoffice data, {backfillResult.computeReturnedNull} could not compute (wrong/missing columns?). Refresh the page to see changes.
-          </p>
+          <div className="management-muted" role="status">
+            <p>
+              Backfill: {backfillResult.updated} updated, {backfillResult.noRawJson} had no backoffice data, {backfillResult.computeReturnedNull} could not compute.
+            </p>
+            {backfillResult.sampleRowKeys != null && backfillResult.sampleRowKeys.length > 0 && (
+              <details style={{ marginTop: 8 }}>
+                <summary>Sample backoffice column names (from one uncomputed row)</summary>
+                <pre style={{ fontSize: "0.75rem", marginTop: 4, overflow: "auto", maxHeight: 200 }}>
+                  {backfillResult.sampleRowKeys.join(", ")}
+                </pre>
+                {backfillResult.sampleRow != null && (
+                  <pre style={{ fontSize: "0.7rem", marginTop: 4, overflow: "auto", maxHeight: 160 }}>
+                    {Object.entries(backfillResult.sampleRow)
+                      .map(([k, v]) => `${k}: ${v === "" ? "(empty)" : v}`)
+                      .join("\n")}
+                  </pre>
+                )}
+              </details>
+            )}
+            <p style={{ marginTop: 4 }}>Refresh the page to see changes.</p>
+          </div>
         )}
 
         {loading ? (

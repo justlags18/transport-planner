@@ -123,6 +123,7 @@ consignmentsRouter.post("/api/consignments/backfill-pallets", async (_req, res, 
     let updated = 0;
     let noRawJson = 0;
     let computeNull = 0;
+    let sampleRow: Record<string, string> | null = null;
 
     for (const c of all) {
       if (!c.rawJson || c.rawJson.trim() === "" || c.rawJson === "{}") {
@@ -140,6 +141,14 @@ consignmentsRouter.post("/api/consignments/backfill-pallets", async (_req, res, 
           updated += 1;
         } else {
           computeNull += 1;
+          if (sampleRow == null) {
+            sampleRow = {};
+            for (const [k, v] of Object.entries(row)) {
+              if (k.startsWith("_")) continue;
+              const s = v == null ? "" : String(v).trim();
+              sampleRow[k] = s.length > 120 ? s.slice(0, 120) + "…" : s;
+            }
+          }
         }
       } catch {
         computeNull += 1;
@@ -152,6 +161,8 @@ consignmentsRouter.post("/api/consignments/backfill-pallets", async (_req, res, 
       updated,
       noRawJson,
       computeReturnedNull: computeNull,
+      sampleRowKeys: sampleRow ? Object.keys(sampleRow) : undefined,
+      sampleRow: sampleRow ?? undefined,
     });
   } catch (err) {
     next(err);
