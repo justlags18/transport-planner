@@ -1568,15 +1568,18 @@ button:disabled {
 }
 
 .role-badge-management {
-  background: #C62828;
+  background: linear-gradient(135deg, #FCA5A5 0%, #EF4444 55%, #B91C1C 100%);
+  border: 1px solid rgba(239, 68, 68, 0.55);
 }
 
 .role-badge-planner {
-  background: #2E7D32;
+  background: linear-gradient(135deg, #86EFAC 0%, #22C55E 55%, #166534 100%);
+  border: 1px solid rgba(34, 197, 94, 0.55);
 }
 
 .role-badge-clerk {
-  background: #5F6368;
+  background: linear-gradient(135deg, #CBD5E1 0%, #6B7280 55%, #374151 100%);
+  border: 1px solid rgba(148, 163, 184, 0.6);
 }
 
 /* --- Truck departure table --- */
