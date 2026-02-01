@@ -209,7 +209,7 @@ export const ConsignmentsPage = () => {
                       <span className="consignments-group-count">
                         Jobs: {group.items.length}
                       </span>
-                      <span>ETA {groupEta}</span>
+                      <span className="consignments-group-eta">ETA {groupEta}</span>
                     </div>
                     {group.items.length > 1 ? (
                       <span className="consignments-group-chevron" aria-hidden="true">▼</span>

@@ -1144,6 +1144,8 @@ button:disabled {
   font-size: 0.75rem;
   color: var(--text-secondary);
   text-align: right;
+  margin-left: auto;
+  min-width: 140px;
 }
 
 .consignments-group-count {
@@ -1159,6 +1161,11 @@ button:disabled {
   font-weight: 700;
   font-size: 0.85rem;
   box-shadow: 0 6px 14px rgba(32, 156, 90, 0.25);
+}
+
+.consignments-group-eta {
+  display: inline-flex;
+  justify-content: flex-end;
 }
 
 .consignments-group-chevron {
