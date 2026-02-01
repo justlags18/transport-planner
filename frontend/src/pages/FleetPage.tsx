@@ -98,10 +98,10 @@ export const FleetPage = () => {
                           }))
                         }
                       >
-                        Toggle (Planner)
+                        Toggle
                       </button>
                     ) : (
-                      <span className="fleet-toggle-hint">Toggle (Planner)</span>
+                      <span className="fleet-toggle-hint">Toggle</span>
                     )}
                     <span className="fleet-card-badge">
                       {lorry.assignments?.length ?? 0} stops
