@@ -6,6 +6,7 @@ import { prisma } from "../db";
 import type { AuthRequest } from "../middleware/auth";
 
 const ROLES = ["Clerk", "Planner", "Management", "Developer"] as const;
+const PROTECTED_EMAIL = "jamie@pml-ltd.com";
 
 function generateRandomPassword(length = 12): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
@@ -158,6 +159,11 @@ usersRouter.patch("/api/users/:id/role", async (req: AuthRequest, res: Response)
     const user = await prisma.user.findUnique({ where: { id } });
     if (!user) {
       res.status(404).json({ ok: false, error: "User not found" });
+      return;
+    }
+
+    if (user.email === PROTECTED_EMAIL && role !== "Developer") {
+      res.status(403).json({ ok: false, error: "Primary developer account role cannot be changed" });
       return;
     }
 
