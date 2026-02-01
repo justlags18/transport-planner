@@ -81,14 +81,28 @@ function scanAllKeysForNumber(
   return "";
 }
 
+/** Skid = pallet. Extract pallet count from "X skid(s)" or "X X SKID" etc. */
+function parseSkidPallets(row: Record<string, unknown>): number | null {
+  const unitDetails = str(row, "unit details") || str(row, "units") || str(row, "observation")
+    || str(row, "product description") || str(row, "pr desc") || "";
+  const text = unitDetails.toLowerCase();
+  if (!text.includes("skid")) return null;
+  const match = text.match(/(\d+)\s*(?:x\s*)?skids?/i) || unitDetails.match(/(\d+)\s*[xX×]\s*skid/i);
+  if (!match) return null;
+  const n = Number(match[1]);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
 /**
- * Compute pallet count from a backoffice row (same rules as scraper).
- * Used when scraping and when recomputing from stored rawJson for consignments
- * that have missing pallets (e.g. scraped before rules existed or different column names).
- * Tries explicit key names first, then scans all keys for weight/quantity-like names.
- * Accepts Record<string, unknown> so parsed JSON with number values works.
+ * Compute pallet count from a backoffice row.
+ * - Skid = pallet: "X skid(s)" or "X X SKID" → pallets = X.
+ * - Total PCs (not delivered): "0 of 2" → use 2 for rules.
+ * - Flowers, PMC, AKE, then pieces.
  */
 export function computePalletsFromRow(row: Record<string, unknown>): number | null {
+  const skidPallets = parseSkidPallets(row);
+  if (skidPallets != null) return skidPallets;
+
   const productDescription =
     str(row, "product description") || str(row, "pr desc") || str(row, "product")
     || str(row, "description") || str(row, "goods description")
