@@ -75,10 +75,28 @@ consignmentsRouter.get("/api/consignments", async (req, res, next) => {
     });
 
     // When palletsFromSite is missing, recompute from stored backoffice row and persist so DB is updated
+    // Also auto-assign deliveryLocationId if customer has exactly one location and none is set
     const updates: { id: string; palletsFromSite: number }[] = [];
+    const locationUpdates: { id: string; deliveryLocationId: string }[] = [];
+    
+    // Fetch customer→location mappings for auto-assignment
+    const customerPrefs = await prisma.customerPref.findMany({
+      where: { customerKey: { not: null }, deliveryType: "deliver" },
+      include: { locations: true },
+    });
+    const customerToLocations = new Map<string, string[]>();
+    for (const pref of customerPrefs) {
+      if (pref.customerKey) {
+        customerToLocations.set(pref.customerKey, pref.locations.map((l) => l.deliveryLocationId));
+      }
+    }
+
     const itemsWithComputedPallets: ConsignmentDTO[] = items.map((item) => {
       const { rawJson, ...rest } = item;
       let palletsFromSite = rest.palletsFromSite;
+      let deliveryLocationId = rest.deliveryLocationId;
+      
+      // Compute pallets if missing
       if ((palletsFromSite == null || palletsFromSite === 0) && rawJson) {
         try {
           const row = JSON.parse(rawJson) as Record<string, unknown>;
@@ -89,16 +107,29 @@ consignmentsRouter.get("/api/consignments", async (req, res, next) => {
           // ignore
         }
       }
-      return { ...rest, palletsFromSite };
+      
+      // Auto-assign deliveryLocationId if customer has exactly one location and none is set
+      if (!deliveryLocationId && rest.customerKey) {
+        const locs = customerToLocations.get(rest.customerKey);
+        if (locs && locs.length === 1) {
+          deliveryLocationId = locs[0];
+          locationUpdates.push({ id: item.id, deliveryLocationId: locs[0] });
+        }
+      }
+      
+      return { ...rest, palletsFromSite, deliveryLocationId };
     });
 
-    // Persist computed pallets so future reads (and other APIs) see the value from DB
-    if (updates.length > 0) {
-      await Promise.all(
-        updates.map(({ id, palletsFromSite }) =>
+    // Persist computed pallets and auto-assigned locations
+    if (updates.length > 0 || locationUpdates.length > 0) {
+      await Promise.all([
+        ...updates.map(({ id, palletsFromSite }) =>
           prisma.consignment.update({ where: { id }, data: { palletsFromSite } }),
         ),
-      );
+        ...locationUpdates.map(({ id, deliveryLocationId }) =>
+          prisma.consignment.update({ where: { id }, data: { deliveryLocationId } }),
+        ),
+      ]);
     }
 
     res.json({ items: itemsWithComputedPallets });

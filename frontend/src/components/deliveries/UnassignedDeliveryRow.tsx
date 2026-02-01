@@ -70,7 +70,10 @@ const UnassignedDeliveryRowInner = ({
   const availableLocationIds = consignment.customerKey ? (customerLocationMap[consignment.customerKey] ?? []) : [];
   const availableLocations = deliveryLocations.filter((loc) => availableLocationIds.includes(loc.id));
   const currentLocationId = (consignment as any).deliveryLocationId;
-  const showDropdown = availableLocations.length > 1 || (availableLocations.length === 1 && !currentLocationId);
+  
+  // Show dropdown only if customer has multiple (2+) locations
+  // If customer has exactly 1 location, backend auto-assigns it, so no dropdown needed
+  const showDropdown = availableLocations.length > 1;
 
   const handleCheckboxClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -142,13 +145,15 @@ const UnassignedDeliveryRowInner = ({
             onClick={(e) => e.stopPropagation()}
             title="Select delivery location for this job"
           >
-            {!currentLocationId && <option value="">—</option>}
+            <option value="">—</option>
             {availableLocations.map((loc) => (
               <option key={loc.id} value={loc.id}>
                 {loc.displayName}
               </option>
             ))}
           </select>
+        ) : currentLocationId ? (
+          availableLocations.find((l) => l.id === currentLocationId)?.displayName ?? "—"
         ) : (
           deliveryLocationDisplay(consignment.destinationKey, consignment.destinationRaw)
         )}
