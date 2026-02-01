@@ -91,11 +91,14 @@ model AuditLog {
   id         String   @id @default(cuid())
   actorId    String?
   actorEmail String?
+  actorRole  String?
   action     String
   entityType String
   entityId   String?
   message    String
   createdAt  DateTime @default(now())
+  archivedAt DateTime?
 
   @@index([createdAt])
+  @@index([archivedAt])
 }

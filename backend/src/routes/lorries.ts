@@ -177,7 +177,8 @@ lorriesRouter.patch("/api/lorries/:id/status", async (req: AuthRequest, res: Res
       data: {
         actorId: req.user?.userId ?? null,
         actorEmail: req.user?.email ?? null,
-        action: "lorry.status",
+        actorRole: req.user?.role ?? null,
+        action: status === "on" ? "lorry.status.on" : "lorry.status.off",
         entityType: "lorry",
         entityId: id,
         message: `Set ${existing.name} ${status === "on" ? "ON ROAD" : "OFF ROAD"}`,
