@@ -48,12 +48,23 @@ const parseEtaIso = (dateStr: string, timeStr: string): string | null => {
 };
 
 const parseSelectTime = ($cell: cheerio.Cheerio<any>): string | null => {
-  const hour = $cell.find("select[name='hours'] option:selected").attr("value")
-    ?? $cell.find("select[name='hours'] option[selected]").attr("value")
+  const hourSelect = $cell.find("select[name='hours']");
+  const minuteSelect = $cell.find("select[name='minutes']");
+  const hour = hourSelect.find("option:selected").attr("value")
+    ?? hourSelect.find("option[selected]").attr("value")
     ?? "";
-  const minute = $cell.find("select[name='minutes'] option:selected").attr("value")
-    ?? $cell.find("select[name='minutes'] option[selected]").attr("value")
+  let minute = minuteSelect.find("option:selected").attr("value")
+    ?? minuteSelect.find("option[selected]").attr("value")
     ?? "";
+
+  if (!minute) {
+    const fallbackSelects = $cell.find("select[name='hours']");
+    const fallbackMinute = fallbackSelects.eq(1).find("option:selected").attr("value")
+      ?? fallbackSelects.eq(1).find("option[selected]").attr("value")
+      ?? "";
+    minute = fallbackMinute;
+  }
+
   if (!hour && !minute) return null;
   const hh = hour.padStart(2, "0");
   const mm = minute.padStart(2, "0");
