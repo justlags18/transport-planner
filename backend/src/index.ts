@@ -2,6 +2,7 @@ import "dotenv/config";
 import { createApp } from "./server";
 import { ensureInitialUser } from "./seed";
 import { startBackofficePoller } from "./jobs/backofficePoller";
+import { startFleetStatusSync } from "./jobs/fleetStatusSync";
 
 const app = createApp();
 const port = Number(process.env.PORT) || 3001;
@@ -16,6 +17,8 @@ const start = async () => {
   if (process.env.PML_BACKOFFICE_POLL === "1") {
     startBackofficePoller();
   }
+
+  startFleetStatusSync();
 
   app.listen(port, () => {
     console.log(`API listening on port ${port}`);

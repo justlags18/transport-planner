@@ -2,6 +2,7 @@ import { Router, Response } from "express";
 import { z } from "zod";
 import { prisma } from "../db";
 import type { AuthRequest } from "../middleware/auth";
+import { syncLorryStatusFromSchedule } from "../services/lorryStatusSync";
 
 const TRUCK_CLASSES = ["Class1", "Class2", "Vans"] as const;
 
@@ -33,11 +34,13 @@ const updateLorrySchema = z.object({
 });
 
 const updateStatusSchema = z.object({
-  status: z.enum(["on", "off"]),
+  status: z.enum(["on", "off", "service"]),
 });
 
 lorriesRouter.get("/api/lorries", async (_req, res, next) => {
   try {
+    const statusByLorryId = await syncLorryStatusFromSchedule();
+
     const lorries = await prisma.lorry.findMany({
       orderBy: { createdAt: "asc" },
       include: {
@@ -55,6 +58,7 @@ lorriesRouter.get("/api/lorries", async (_req, res, next) => {
     });
 
     const items = lorries.map((lorry) => {
+      const effectiveStatus = statusByLorryId.get(lorry.id) ?? lorry.status ?? "on";
       const assignments = lorry.assignments.map((assignment) => {
         const { consignment } = assignment;
         const effectivePallets =
@@ -74,6 +78,7 @@ lorriesRouter.get("/api/lorries", async (_req, res, next) => {
 
       return {
         ...lorry,
+        status: effectiveStatus,
         assignments,
         usedPallets,
       };
@@ -173,15 +178,17 @@ lorriesRouter.patch("/api/lorries/:id/status", async (req: AuthRequest, res: Res
       data: { status },
     });
 
+    const statusLabel = status === "on" ? "ON ROAD" : status === "service" ? "SERVICE" : "OFF ROAD";
+    const actionName = status === "on" ? "lorry.status.on" : status === "service" ? "lorry.status.service" : "lorry.status.off";
     await prisma.auditLog.create({
       data: {
         actorId: req.user?.userId ?? null,
         actorEmail: req.user?.email ?? null,
         actorRole: req.user?.role ?? null,
-        action: status === "on" ? "lorry.status.on" : "lorry.status.off",
+        action: actionName,
         entityType: "lorry",
         entityId: id,
-        message: `Set ${existing.name} ${status === "on" ? "ON ROAD" : "OFF ROAD"}`,
+        message: `Set ${existing.name} ${statusLabel}`,
       },
     });
 
