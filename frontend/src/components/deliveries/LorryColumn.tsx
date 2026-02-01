@@ -22,6 +22,8 @@ type LorryColumnProps = {
   missingPalletsFallback?: number;
 };
 
+const PLACEHOLDER_SLOT_COUNT = 4;
+
 const LorryColumnInner = memo(({ lorry, activeDragData = null, missingPalletsFallback = 1 }: LorryColumnProps) => {
   const { setNodeRef, isOver } = useDroppable({
     id: `lorry:${lorry.id}`,
@@ -44,6 +46,8 @@ const LorryColumnInner = memo(({ lorry, activeDragData = null, missingPalletsFal
   const wouldExceedCapacity = isOver && activeDragData != null && previewUsed > capacity;
   const invalidDrop = wouldExceedCapacity;
   const showPreview = isOver && activeDragData != null;
+  const isDragActive = activeDragData != null;
+  const isEmpty = lorry.assignments.length === 0;
 
   const status = lorry.status ?? "on";
   const statusLabel = status === "on" ? "ON ROAD" : "IDLE";
@@ -51,52 +55,63 @@ const LorryColumnInner = memo(({ lorry, activeDragData = null, missingPalletsFal
   return (
     <section
       ref={setNodeRef}
-      className={`lorries-board-column${invalidDrop ? " lorries-board-column--invalid-drop" : ""}`}
+      className={`lorries-board-column${invalidDrop ? " lorries-board-column--invalid-drop" : ""}${isDragActive ? " lorries-board-column--drag-active" : ""}`}
       data-active={isOver ? "true" : "false"}
       data-over-capacity={overCapacity ? "true" : "false"}
       data-invalid-drop={invalidDrop ? "true" : "false"}
+      data-empty={isEmpty ? "true" : "false"}
       aria-label={`Lorry ${lorry.name}`}
     >
-      <h3 className="lorries-board-column-title">{lorry.name}</h3>
-
-      <div className={`lorries-board-column-status-badge lorries-board-column-status-badge--${status === "on" ? "on-road" : "idle"}`}>
-        {statusLabel}
-      </div>
-
-      <div className="lorries-board-column-capacity">
-        <span className="lorries-board-column-capacity-text">
-          {used} / {capacity} pallets
+      <header className="lorries-board-column-header">
+        <h3 className="lorries-board-column-title">{lorry.name}</h3>
+        <span className={`lorries-board-column-status-badge lorries-board-column-status-badge--${status === "on" ? "on-road" : "idle"}`}>
+          {statusLabel}
         </span>
-        {showPreview && (
-          <span className="lorries-board-column-capacity-preview" title={wouldExceedCapacity ? "Over capacity" : undefined}>
-            → {previewUsed} (preview)
-          </span>
-        )}
-      </div>
+      </header>
 
-      <div
-        className="lorries-board-column-bar-wrap"
-        title={wouldExceedCapacity ? "Over capacity" : undefined}
-        aria-describedby={wouldExceedCapacity ? `lorry-${lorry.id}-overflow` : undefined}
-      >
-        <div className="lorries-board-column-bar" role="progressbar" aria-valuenow={used} aria-valuemin={0} aria-valuemax={capacity} aria-label="Capacity">
-          <div
-            className={`lorries-board-column-bar-fill lorries-board-column-bar-fill--${showPreview ? previewBarColor : barColor}`}
-            style={{ width: `${Math.min(100, (showPreview ? previewUsed / capacity : used / capacity) * 100)}%` }}
-          />
-        </div>
-        {wouldExceedCapacity && (
-          <span id={`lorry-${lorry.id}-overflow`} className="lorries-board-column-overflow-tooltip" role="status">
-            Over capacity
+      <div className="lorries-board-column-capacity-section">
+        <div className="lorries-board-column-capacity">
+          <span className="lorries-board-column-capacity-text">
+            {used} / {capacity} pallets
           </span>
-        )}
+          {showPreview && (
+            <span className="lorries-board-column-capacity-preview" title={wouldExceedCapacity ? "Over capacity" : undefined}>
+              → {previewUsed} (preview)
+            </span>
+          )}
+        </div>
+        <div
+          className="lorries-board-column-bar-wrap"
+          title={wouldExceedCapacity ? "Over capacity" : undefined}
+          aria-describedby={wouldExceedCapacity ? `lorry-${lorry.id}-overflow` : undefined}
+        >
+          <div className="lorries-board-column-bar" role="progressbar" aria-valuenow={used} aria-valuemin={0} aria-valuemax={capacity} aria-label="Capacity">
+            <div
+              className={`lorries-board-column-bar-fill lorries-board-column-bar-fill--${showPreview ? previewBarColor : barColor}`}
+              style={{ width: `${Math.min(100, (showPreview ? previewUsed / capacity : used / capacity) * 100)}%` }}
+            />
+          </div>
+          {wouldExceedCapacity && (
+            <span id={`lorry-${lorry.id}-overflow`} className="lorries-board-column-overflow-tooltip" role="status">
+              Over capacity
+            </span>
+          )}
+        </div>
       </div>
 
       <div className="lorries-board-column-dropzone">
-        {isOver ? <div className="lorries-board-column-drop-indicator">Drop job here</div> : null}
-
-        {lorry.assignments.length === 0 && !isOver ? (
-          <div className="lorries-board-column-empty">No jobs assigned</div>
+        {isOver ? (
+          <div className="lorries-board-column-drop-indicator">Drop here</div>
+        ) : isEmpty ? (
+          <div className="lorries-board-column-empty-state">
+            <span className="lorries-board-column-empty-icon" aria-hidden>↓</span>
+            <span className="lorries-board-column-empty-text">Drag deliveries here</span>
+            <div className="lorries-board-column-placeholders" aria-hidden>
+              {Array.from({ length: PLACEHOLDER_SLOT_COUNT }, (_, i) => (
+                <div key={i} className="lorries-board-column-placeholder-slot" />
+              ))}
+            </div>
+          </div>
         ) : (
           <SortableContext
             items={lorry.assignments.map((a) => `assignment:${a.id}`)}

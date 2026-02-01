@@ -354,7 +354,10 @@ export const DeliveriesPage = () => {
             onDragEnd={handleDragEnd}
             onDragCancel={handleDragCancel}
           >
-            <div className="deliveries-two-column-board">
+            <div
+              className="deliveries-two-column-board"
+              data-drag-active={activeDragData != null ? "true" : "false"}
+            >
               <UnassignedDeliveriesPanel
                 unassigned={unassigned}
                 loading={loading}
