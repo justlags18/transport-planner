@@ -47,6 +47,19 @@ const parseEtaIso = (dateStr: string, timeStr: string): string | null => {
   return null;
 };
 
+const parseSelectTime = ($cell: cheerio.Cheerio<any>): string | null => {
+  const hour = $cell.find("select[name='hours'] option:selected").attr("value")
+    ?? $cell.find("select[name='hours'] option[selected]").attr("value")
+    ?? "";
+  const minute = $cell.find("select[name='minutes'] option:selected").attr("value")
+    ?? $cell.find("select[name='minutes'] option[selected]").attr("value")
+    ?? "";
+  if (!hour && !minute) return null;
+  const hh = hour.padStart(2, "0");
+  const mm = minute.padStart(2, "0");
+  return `${hh}:${mm}`;
+};
+
 const getHeaderMap = (
   $table: cheerio.Cheerio<any>,
   $: cheerio.CheerioAPI,
@@ -85,8 +98,12 @@ const extractRows = (
       const dataTime = $(cell).children().first().attr("data-time")
         ?? $(cell).find("[data-time]").first().attr("data-time")
         ?? "";
+      const selectedTime = key.includes("eta") ? parseSelectTime($(cell)) : null;
       const preferDataTime = key.includes("eta") && (cellText.toLowerCase() === "in" || !cellText);
-      const value = preferDataTime && dataTime ? dataTime.trim() : (cellText || titleText.trim());
+      const value =
+        preferDataTime && dataTime
+          ? dataTime.trim()
+          : (selectedTime ?? cellText || titleText.trim());
       record[key] = value;
     });
     rows.push(record);
