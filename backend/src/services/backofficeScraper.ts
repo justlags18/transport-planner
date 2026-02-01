@@ -365,6 +365,7 @@ export const fetchAndUpsertConsignments = async (): Promise<number> => {
     const observation = row["observation"] ?? row["observations"] ?? row["notes"] ?? "";
     const productDescription =
       row["product description"]
+      ?? row["pr desc"]
       ?? row["product"]
       ?? row["description"]
       ?? row["goods description"]
