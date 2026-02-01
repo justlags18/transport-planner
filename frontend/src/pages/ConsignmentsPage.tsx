@@ -144,8 +144,7 @@ export const ConsignmentsPage = () => {
     const flat: ConsignmentDTO[] = [];
     const expandable = grouped.filter((group) => {
       const hasMultiple = group.items.length > 1;
-      const allHaveHawb = group.items.every((item) => item.hawbRaw && item.hawbRaw.trim());
-      if (hasMultiple && allHaveHawb) {
+      if (hasMultiple) {
         return true;
       }
       flat.push(...group.items);
