@@ -1408,6 +1408,11 @@ button:disabled {
   flex-shrink: 0;
 }
 
+.lorries-board-assignment-client-line {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
 @media (max-width: 900px) {
   .deliveries-columns {
     grid-template-columns: 1fr;

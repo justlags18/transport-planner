@@ -12,6 +12,8 @@ export type ConsignmentDTO = {
   customerKey: string | null;
   destinationRaw: string | null;
   destinationKey: string | null;
+  mawbRaw: string | null;
+  hawbRaw: string | null;
   etaIso: string | null;
   status: string | null;
   palletsFromSite: number | null;

@@ -140,6 +140,12 @@ type AssignmentRowProps = {
   showMissingPalletsChip?: boolean;
 };
 
+function awbDisplay(mawb: string | null | undefined, hawb: string | null | undefined): string {
+  if (mawb?.trim()) return mawb.trim();
+  if (hawb?.trim()) return hawb.trim();
+  return "—";
+}
+
 const AssignmentRow = ({ assignment, lorryId, showMissingPalletsChip = false }: AssignmentRowProps) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: `assignment:${assignment.id}`,
@@ -159,6 +165,11 @@ const AssignmentRow = ({ assignment, lorryId, showMissingPalletsChip = false }: 
   };
 
   const missingPallets = assignment.effectivePallets == null || assignment.effectivePallets === 0;
+  const c = assignment.consignment;
+  const deliveryLocation = c.destinationRaw?.trim() || c.destinationKey?.trim() || "Unknown location";
+  const client = c.customerNameRaw?.trim() || "Unknown client";
+  const jobId = c.id;
+  const awb = awbDisplay(c.mawbRaw ?? null, c.hawbRaw ?? null);
 
   return (
     <article
@@ -173,8 +184,10 @@ const AssignmentRow = ({ assignment, lorryId, showMissingPalletsChip = false }: 
           ⋮⋮
         </button>
         <div>
-          <div className="card-title">{assignment.consignment.customerNameRaw ?? "Unknown customer"}</div>
-          <div className="card-subtitle">{assignment.consignment.destinationRaw ?? "Unknown destination"}</div>
+          <div className="card-title">{deliveryLocation}</div>
+          <div className="card-subtitle lorries-board-assignment-client-line">
+            {client} · Job {jobId}{awb !== "—" ? ` · AWB ${awb}` : ""}
+          </div>
         </div>
         {showMissingPalletsChip && missingPallets && (
           <span className="lorries-board-assignment-missing-chip" title="Missing or zero pallets – counted using fallback for capacity">
