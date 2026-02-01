@@ -476,17 +476,6 @@ export const ManagementPage = () => {
     }
   };
 
-  const togglePrefLocation = (locationId: string) => {
-    setEditPrefLocationIds((prev) =>
-      prev.includes(locationId) ? prev.filter((id) => id !== locationId) : [...prev, locationId]
-    );
-  };
-
-  const toggleAddPrefLocation = (locationId: string) => {
-    setAddPrefLocationIds((prev) =>
-      prev.includes(locationId) ? prev.filter((id) => id !== locationId) : [...prev, locationId]
-    );
-  };
 
   const handleDeletePref = async (id: string) => {
     setError("");
@@ -1001,22 +990,24 @@ export const ManagementPage = () => {
                 {prefDeliveryType === "deliver" && (
                   <label>
                     Delivery locations
-                    <div className="management-location-checkboxes">
-                      {locations.length === 0 ? (
-                        <span className="management-muted">Add locations in Delivery Locations tab first</span>
-                      ) : (
-                        locations.map((loc) => (
-                          <label key={loc.id} className="management-checkbox-label">
-                            <input
-                              type="checkbox"
-                              checked={addPrefLocationIds.includes(loc.id)}
-                              onChange={() => toggleAddPrefLocation(loc.id)}
-                            />
-                            <span>{loc.displayName}</span>
-                          </label>
-                        ))
-                      )}
-                    </div>
+                    {locations.length === 0 ? (
+                      <p className="management-muted" style={{ marginTop: "0.25rem" }}>Add locations in Delivery Locations tab first</p>
+                    ) : (
+                      <>
+                        <select
+                          multiple
+                          value={addPrefLocationIds}
+                          onChange={(e) => setAddPrefLocationIds(Array.from(e.target.selectedOptions, (o) => o.value))}
+                          className="management-select management-location-select"
+                          size={Math.min(6, Math.max(3, locations.length))}
+                        >
+                          {locations.map((loc) => (
+                            <option key={loc.id} value={loc.id}>{loc.displayName}</option>
+                          ))}
+                        </select>
+                        <p className="management-muted" style={{ marginTop: "0.25rem", fontSize: "0.8rem" }}>Hold Ctrl (Windows) or Cmd (Mac) to select multiple</p>
+                      </>
+                    )}
                   </label>
                 )}
                 <label>
@@ -1102,22 +1093,21 @@ export const ManagementPage = () => {
                         </td>
                         <td>
                           {editingPrefId === p.id ? (
-                            <div className="management-location-checkboxes">
-                              {locations.length === 0 ? (
-                                <span className="management-muted">Add locations in Delivery Locations tab</span>
-                              ) : (
-                                locations.map((loc) => (
-                                  <label key={loc.id} className="management-checkbox-label">
-                                    <input
-                                      type="checkbox"
-                                      checked={editPrefLocationIds.includes(loc.id)}
-                                      onChange={() => togglePrefLocation(loc.id)}
-                                    />
-                                    <span>{loc.displayName}</span>
-                                  </label>
-                                ))
-                              )}
-                            </div>
+                            locations.length === 0 ? (
+                              <span className="management-muted">Add locations in Delivery Locations tab</span>
+                            ) : (
+                              <select
+                                multiple
+                                value={editPrefLocationIds}
+                                onChange={(e) => setEditPrefLocationIds(Array.from(e.target.selectedOptions, (o) => o.value))}
+                                className="management-select management-location-select management-select-small"
+                                size={Math.min(4, Math.max(2, locations.length))}
+                              >
+                                {locations.map((loc) => (
+                                  <option key={loc.id} value={loc.id}>{loc.displayName}</option>
+                                ))}
+                              </select>
+                            )
                           ) : (
                             p.deliveryLocations?.length ? p.deliveryLocations.map((l) => l.displayName).join(", ") : "—"
                           )}

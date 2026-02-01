@@ -1057,6 +1057,15 @@ button:disabled {
   min-width: 100px;
 }
 
+.management-location-select {
+  min-width: 200px;
+  max-width: 320px;
+}
+
+.management-location-select[multiple] {
+  padding: 0.25rem 0.5rem;
+}
+
 .management-checkbox-label {
   flex-direction: row !important;
   align-items: center;
