@@ -13,6 +13,7 @@ const DATA_URL = process.env.PML_BACKOFFICE_DATA_URL ?? LOGIN_URL;
 const DATA_URLS = process.env.PML_BACKOFFICE_DATA_URLS ?? "";
 const USERNAME = process.env.PML_BACKOFFICE_USER ?? "";
 const PASSWORD = process.env.PML_BACKOFFICE_PASS ?? "";
+const DEBUG = process.env.PML_BACKOFFICE_DEBUG === "1";
 
 const normalizeHeader = (value: string) =>
   value.replace(/\s+/g, " ").trim().toLowerCase();
@@ -52,16 +53,18 @@ export const extractEtaFromFragment = (fragmentHtml: string): string | null => {
   const fragmentText = $.text().replace(/\s+/g, " ").trim();
   if (!fragmentText) return null;
 
+  const keywordMatch = fragmentText.match(
+    /\b(?:ETA|Arrival)\b[^0-9]{0,12}([01]\d|2[0-3])[: ]?([0-5]\d)\b/i,
+  );
+  if (keywordMatch) {
+    return `${keywordMatch[1]}:${keywordMatch[2]}`;
+  }
+
   const colonMatch = fragmentText.match(/\b([01]?\d|2[0-3])[: ]([0-5]\d)\b/);
   if (colonMatch) {
     const hh = colonMatch[1].padStart(2, "0");
     const mm = colonMatch[2].padStart(2, "0");
     return `${hh}:${mm}`;
-  }
-
-  const keywordMatch = fragmentText.match(/\b(?:ETA|Arrival)\b[^0-9]{0,12}([01]\d|2[0-3])([0-5]\d)\b/i);
-  if (keywordMatch) {
-    return `${keywordMatch[1]}:${keywordMatch[2]}`;
   }
 
   return null;
@@ -120,31 +123,55 @@ const asyncPool = async <T, R>(
   return results;
 };
 
-const fetchFlightInfoMap = async (
-  client: ReturnType<typeof wrapper>,
-  baseUrl: string,
-  recordIds: string[],
-): Promise<Map<string, string>> => {
-  const uniqueIds = Array.from(new Set(recordIds)).filter(Boolean);
-  if (!uniqueIds.length) return new Map();
+type FlightInfoResult = {
+  recordid: string;
+  eta: string | null;
+  loginDetected: boolean;
+  fragmentPreview: string;
+};
 
-  const now = Date.now();
+const fetchFlightInfoResults = async (
+  client: ReturnType<typeof wrapper>,
+  listingPageUrl: string,
+  recordIds: string[],
+): Promise<FlightInfoResult[]> => {
+  const uniqueIds = Array.from(new Set(recordIds)).filter(Boolean);
+  if (!uniqueIds.length) return [];
+
   const fetchOne = async (recordId: string) => {
-    const url = new URL(`getflight.asp?ID=${encodeURIComponent(recordId)}&time=${now}`, baseUrl).toString();
+    const now = Date.now();
+    const base = new URL("getflight.asp", listingPageUrl);
+    base.searchParams.set("ID", recordId);
+    base.searchParams.set("time", String(now));
+    const url = base.toString();
     const res = await client.get(url);
     const fragment = res.data as string;
+    const contentType = res.headers?.["content-type"] ?? "";
+    const preview = fragment.slice(0, 200);
+    const loginDetected =
+      /<form/i.test(fragment) && /(password|login)/i.test(fragment);
+    if (DEBUG) {
+      console.debug(`[backoffice] getflight ${recordId} status=${res.status} type=${contentType}`);
+      console.debug(`[backoffice] getflight ${recordId} preview=${preview}`);
+    }
+    if (loginDetected) {
+      return {
+        recordid: recordId,
+        eta: null,
+        loginDetected: true,
+        fragmentPreview: preview,
+      };
+    }
     const eta = extractEtaFromFragment(fragment);
-    return { recordId, eta };
+    return {
+      recordid: recordId,
+      eta,
+      loginDetected: false,
+      fragmentPreview: preview,
+    };
   };
 
-  const results = await asyncPool(5, uniqueIds, fetchOne);
-  const map = new Map<string, string>();
-  for (const result of results) {
-    if (result.eta) {
-      map.set(result.recordId, result.eta);
-    }
-  }
-  return map;
+  return asyncPool(5, uniqueIds, fetchOne);
 };
 
 const getHeaderMap = (
@@ -295,14 +322,26 @@ export const fetchAndUpsertConsignments = async (): Promise<number> => {
   for (const url of urls) {
     const dataRes = await client.get(url);
     const html = dataRes.data as string;
+    const listingPageUrl =
+      dataRes.request?.res?.responseUrl
+      ?? dataRes.config?.url
+      ?? url;
     const $ = cheerio.load(html);
     const table = pickTable($);
     if (!table) {
       continue;
     }
+    const recordIds = $("td[data-id='flightinfo'][data-recordid]")
+      .map((_, el) => $(el).attr("data-recordid") ?? "")
+      .get()
+      .filter(Boolean);
+    if (DEBUG) {
+      console.debug(`[backoffice] flight record IDs=${recordIds.length}`);
+      console.debug(`[backoffice] flight record IDs sample=${recordIds.slice(0, 5).join(",")}`);
+    }
     const pageRows = extractRows(table, $);
-    const recordIds = pageRows.map((row) => row["_recordid"]).filter(Boolean);
-    const etaMap = await fetchFlightInfoMap(client, url, recordIds);
+    const flightResults = await fetchFlightInfoResults(client, listingPageUrl, recordIds);
+    const etaMap = new Map(flightResults.map((result) => [result.recordid, result.eta]));
     for (const row of pageRows) {
       const recordId = row["_recordid"];
       if (recordId && etaMap.has(recordId)) {
