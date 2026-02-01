@@ -82,11 +82,14 @@ export const FleetPage = () => {
                 <article key={lorry.id} className="fleet-card">
                   <div className="fleet-card-header">
                     <h3 className="fleet-card-title">{lorry.name}</h3>
+                    <span className="fleet-card-badge">
+                      {lorry.assignments?.length ?? 0} stops
+                    </span>
+                  </div>
+                  <div className="fleet-card-status-row">
                     <span className={`fleet-card-status ${status}`}>
                       {status === "on" ? "ON ROAD" : "OFF ROAD"}
                     </span>
-                  </div>
-                  <div className="fleet-card-toggle">
                     {canToggleStatus ? (
                       <button
                         type="button"
@@ -100,12 +103,7 @@ export const FleetPage = () => {
                       >
                         Toggle
                       </button>
-                    ) : (
-                      <span className="fleet-toggle-hint">Toggle</span>
-                    )}
-                    <span className="fleet-card-badge">
-                      {lorry.assignments?.length ?? 0} stops
-                    </span>
+                    ) : null}
                   </div>
                   <div className="fleet-card-meta">
                     <span>Status</span>

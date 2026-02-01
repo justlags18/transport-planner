@@ -1131,6 +1131,13 @@ button:disabled {
   text-transform: uppercase;
 }
 
+.fleet-card-status-row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
 .fleet-card-status.on {
   color: #37d27a;
 }
@@ -1139,25 +1146,16 @@ button:disabled {
   color: #f05a5a;
 }
 
-.fleet-card-toggle {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-}
-
 .fleet-toggle-btn {
   border: 1px solid var(--border-default);
   background: var(--bg-elevated);
   color: var(--text-secondary);
   border-radius: 999px;
-  padding: 4px 12px;
-  font-size: 0.75rem;
-}
-
-.fleet-toggle-hint {
-  font-size: 0.75rem;
-  color: var(--text-secondary);
+  padding: 6px 14px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
 }
 
 .fleet-card-badge {
