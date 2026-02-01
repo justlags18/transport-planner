@@ -26,6 +26,16 @@ const parseNumber = (value: string): number | null => {
 
 const parseEtaIso = (dateStr: string, timeStr: string): string | null => {
   const timeLabel = timeStr.trim();
+  if (timeLabel) {
+    const numeric = timeLabel.replace(/[^\d]/g, "");
+    if (numeric.length === 10 || numeric.length === 13) {
+      const epoch = Number(numeric.length === 10 ? `${numeric}000` : numeric);
+      const epochDate = new Date(epoch);
+      if (!Number.isNaN(epochDate.getTime())) {
+        return epochDate.toISOString();
+      }
+    }
+  }
   const combined = `${dateStr} ${timeLabel}`.trim();
   const dt = new Date(combined);
   if (!Number.isNaN(dt.getTime())) {
@@ -72,7 +82,11 @@ const extractRows = (
         ?? $(cell).attr("aria-label")
         ?? $(cell).find("[title]").attr("title")
         ?? "";
-      const value = cellText || titleText.trim();
+      const dataTime = $(cell).children().first().attr("data-time")
+        ?? $(cell).find("[data-time]").first().attr("data-time")
+        ?? "";
+      const preferDataTime = key.includes("eta") && (cellText.toLowerCase() === "in" || !cellText);
+      const value = preferDataTime && dataTime ? dataTime.trim() : (cellText || titleText.trim());
       record[key] = value;
     });
     rows.push(record);
