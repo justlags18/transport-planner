@@ -363,6 +363,12 @@ export const fetchAndUpsertConsignments = async (): Promise<number> => {
     const customer = row["client"] ?? "";
     const destination = row["airport"] ?? row["route"] ?? "";
     const observation = row["observation"] ?? row["observations"] ?? row["notes"] ?? "";
+    const productDescription =
+      row["product description"]
+      ?? row["product"]
+      ?? row["description"]
+      ?? row["goods description"]
+      ?? "";
     const mawb =
       row["mawb"]
       ?? row["mawb no"]
@@ -375,12 +381,26 @@ export const fetchAndUpsertConsignments = async (): Promise<number> => {
       ?? row["awb no"]
       ?? row["awb no."]
       ?? "";
+    const hawb =
+      row["hawb"]
+      ?? row["hawb no"]
+      ?? row["hawb no."]
+      ?? row["house airway bill"]
+      ?? row["house airway bill number"]
+      ?? row["house awb"]
+      ?? row["house awb no"]
+      ?? "";
     const etaIso = parseEtaIso(
       row["consignment date"] ?? "",
       row["eta"] ?? "",
     );
 
-    const packages = row["packages"] ?? "";
+    const packages =
+      row["packages"]
+      ?? row["package"]
+      ?? row["pkgs"]
+      ?? row["packages qty"]
+      ?? "";
     const palletsFromSite = packages ? parseNumber(packages) : null;
     const status = row["status 1"] ?? row["status"] ?? "";
 
@@ -393,6 +413,9 @@ export const fetchAndUpsertConsignments = async (): Promise<number> => {
         destinationKey: destination ? normalizeDestination(destination) : null,
         observationRaw: observation || null,
         mawbRaw: mawb || null,
+        hawbRaw: hawb || null,
+        packagesRaw: packages || null,
+        productDescriptionRaw: productDescription || null,
         etaIso,
         status: status || null,
         palletsFromSite,
@@ -408,6 +431,9 @@ export const fetchAndUpsertConsignments = async (): Promise<number> => {
         destinationKey: destination ? normalizeDestination(destination) : null,
         observationRaw: observation || null,
         mawbRaw: mawb || null,
+        hawbRaw: hawb || null,
+        packagesRaw: packages || null,
+        productDescriptionRaw: productDescription || null,
         etaIso,
         status: status || null,
         palletsFromSite,

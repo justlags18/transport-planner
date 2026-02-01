@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { NavLink } from "react-router-dom";
 import { useTheme } from "../useTheme";
 import { useAuth } from "../context/AuthContext";
@@ -20,9 +21,22 @@ export const Sidebar = () => {
   const { theme, toggleTheme } = useTheme();
   const { user } = useAuth();
   const role = user?.role ?? "Clerk";
+  const [collapsed, setCollapsed] = useState(false);
 
   return (
-    <aside className="dashboard-sidebar" aria-label="Main navigation">
+    <aside
+      className={`dashboard-sidebar${collapsed ? " dashboard-sidebar--collapsed" : ""}`}
+      aria-label="Main navigation"
+    >
+      <button
+        type="button"
+        className="dashboard-sidebar-toggle"
+        onClick={() => setCollapsed((prev) => !prev)}
+        aria-expanded={!collapsed}
+        aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+      >
+        {collapsed ? "»" : "«"}
+      </button>
       <nav className="dashboard-sidebar-nav">
         {NAV_ITEMS.filter((item) => canAccessNavItem(role, item)).map(({ path, label }) => (
           <NavLink
@@ -33,7 +47,7 @@ export const Sidebar = () => {
               `dashboard-sidebar-link${isActive ? " dashboard-sidebar-link--active" : ""}`
             }
           >
-            {label}
+            <span className="dashboard-sidebar-link-label">{label}</span>
           </NavLink>
         ))}
       </nav>

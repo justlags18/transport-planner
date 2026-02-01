@@ -7,6 +7,9 @@ type ConsignmentDTO = {
   destinationRaw: string | null;
   observationRaw: string | null;
   mawbRaw: string | null;
+  hawbRaw: string | null;
+  packagesRaw: string | null;
+  productDescriptionRaw: string | null;
   etaIso: string | null;
   status: string | null;
   palletsFromSite: number | null;
@@ -203,7 +206,7 @@ export const ConsignmentsPage = () => {
                   <summary className="consignments-group-summary">
                     <div className="consignments-group-main">
                       <span className="consignments-group-customer">{group.customer}</span>
-                      <span className="consignments-group-mawb">MAWB: {group.mawb}</span>
+                      <span className="consignments-group-mawb">AWB: {group.mawb}</span>
                     </div>
                     <div className="consignments-group-meta">
                       <span className="consignments-group-count">
@@ -220,8 +223,12 @@ export const ConsignmentsPage = () => {
                       <thead>
                         <tr>
                           <th>PML Ref</th>
+                          <th>Client</th>
+                          <th>AWB</th>
+                          <th>HAWB</th>
                           <th>ETA &amp; Time</th>
-                          <th>Observation</th>
+                          <th>Packages</th>
+                          <th>Product Description</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -229,6 +236,10 @@ export const ConsignmentsPage = () => {
                           const createdAt = new Date(item.createdAt);
                           const isNew =
                             !Number.isNaN(createdAt.getTime()) && createdAt > massCheckCutoff;
+                          const productDescription =
+                            item.productDescriptionRaw
+                            ?? item.observationRaw
+                            ?? "-";
                           return (
                             <tr key={item.id}>
                               <td>
@@ -237,8 +248,12 @@ export const ConsignmentsPage = () => {
                                   {isNew ? <span className="consignments-new">New</span> : null}
                                 </div>
                               </td>
+                              <td>{item.customerNameRaw ?? "-"}</td>
+                              <td>{item.mawbRaw ?? "-"}</td>
+                              <td>{item.hawbRaw ?? "-"}</td>
                               <td>{formatDateTime(item.etaIso)}</td>
-                              <td>{item.observationRaw ?? "-"}</td>
+                              <td>{item.packagesRaw ?? "-"}</td>
+                              <td>{productDescription}</td>
                             </tr>
                           );
                         })}
