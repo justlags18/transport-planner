@@ -1094,6 +1094,65 @@ button:disabled {
   font-size: 0.9rem;
 }
 
+.fleet-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.fleet-card {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-default);
+  border-radius: 16px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 0 10px 24px rgba(10, 12, 20, 0.35);
+}
+
+.fleet-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.fleet-card-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.fleet-card-badge {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: 999px;
+  padding: 4px 8px;
+  background: var(--bg-elevated);
+  white-space: nowrap;
+}
+
+.fleet-card-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+@media (max-width: 1200px) {
+  .fleet-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 700px) {
+  .fleet-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .management-table-wrap {
   overflow-x: auto;
   border: 1px solid var(--border-default);

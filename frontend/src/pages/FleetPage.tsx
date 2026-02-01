@@ -52,34 +52,26 @@ export const FleetPage = () => {
 
         {loading ? (
           <p className="management-loading">Loading fleet…</p>
+        ) : lorries.length === 0 ? (
+          <p className="management-loading">No trucks yet.</p>
         ) : (
-          <div className="management-table-wrap">
-            <table className="management-table">
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Capacity</th>
-                  <th>Used</th>
-                  <th>Stops</th>
-                </tr>
-              </thead>
-              <tbody>
-                {lorries.length === 0 ? (
-                  <tr>
-                    <td colSpan={4}>No trucks yet.</td>
-                  </tr>
-                ) : (
-                  lorries.map((lorry) => (
-                    <tr key={lorry.id}>
-                      <td>{lorry.name}</td>
-                      <td>{lorry.capacityPallets}</td>
-                      <td>{lorry.usedPallets}</td>
-                      <td>{lorry.assignments?.length ?? 0}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+          <div className="fleet-grid">
+            {lorries.map((lorry) => (
+              <article key={lorry.id} className="fleet-card">
+                <div className="fleet-card-header">
+                  <h3 className="fleet-card-title">{lorry.name}</h3>
+                  <span className="fleet-card-badge">{lorry.assignments?.length ?? 0} stops</span>
+                </div>
+                <div className="fleet-card-meta">
+                  <span>Capacity</span>
+                  <span>{lorry.capacityPallets}</span>
+                </div>
+                <div className="fleet-card-meta">
+                  <span>Used</span>
+                  <span>{lorry.usedPallets}</span>
+                </div>
+              </article>
+            ))}
           </div>
         )}
       </div>
