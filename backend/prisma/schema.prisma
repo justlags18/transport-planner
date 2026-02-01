@@ -46,8 +46,25 @@ model Lorry {
   updatedAt       DateTime     @updatedAt
 
   assignments     Assignment[]
+  scheduleEntries FleetSchedule[]
 
   @@index([name])
+}
+
+model FleetSchedule {
+  id        String    @id @default(cuid())
+  lorryId   String
+  type      String    // "off_road" | "service"
+  startAt   DateTime
+  endAt     DateTime?
+  notes     String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  lorry     Lorry     @relation(fields: [lorryId], references: [id], onDelete: Cascade)
+
+  @@index([lorryId])
+  @@index([startAt])
 }
 
 model Assignment {

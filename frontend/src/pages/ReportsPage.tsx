@@ -14,6 +14,25 @@ type AuditLogRow = {
 
 type AuditLogResponse = { ok: boolean; logs: AuditLogRow[] };
 
+type DeliveryLocationRow = {
+  id: string;
+  displayName: string;
+  destinationKey: string | null;
+  notes: string | null;
+  createdAt: string;
+};
+
+type DeliveryLocationsResponse = { ok: boolean; locations: DeliveryLocationRow[] };
+
+type CustomerPrefRow = {
+  id: string;
+  displayName: string;
+  deliveryType: string;
+  deliveryLocations?: { id: string; displayName: string }[];
+};
+
+type CustomerPrefsResponse = { ok: boolean; prefs: CustomerPrefRow[] };
+
 export const ReportsPage = () => {
   const { user } = useAuth();
   const role = user?.role ?? "Clerk";
@@ -27,6 +46,11 @@ export const ReportsPage = () => {
   const [actionFilter, setActionFilter] = useState("");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
+
+  const [locations, setLocations] = useState<DeliveryLocationRow[]>([]);
+  const [locationsLoading, setLocationsLoading] = useState(false);
+  const [prefs, setPrefs] = useState<CustomerPrefRow[]>([]);
+  const [prefsLoading, setPrefsLoading] = useState(false);
 
   const actionOptions = useMemo(() => ["", "lorry.status.on", "lorry.status.off"], []);
 
@@ -58,6 +82,50 @@ export const ReportsPage = () => {
       active = false;
     };
   }, [canViewLogs, tab, roleFilter, actionFilter, fromDate, toDate]);
+
+  useEffect(() => {
+    if (!canViewLogs) return;
+    let active = true;
+    const load = async () => {
+      setLocationsLoading(true);
+      try {
+        const res = await apiGet<DeliveryLocationsResponse>("/api/delivery-locations");
+        if (!active) return;
+        setLocations(res.locations ?? []);
+      } catch {
+        if (!active) return;
+        setLocations([]);
+      } finally {
+        if (active) setLocationsLoading(false);
+      }
+    };
+    load();
+    return () => {
+      active = false;
+    };
+  }, [canViewLogs]);
+
+  useEffect(() => {
+    if (!canViewLogs) return;
+    let active = true;
+    const load = async () => {
+      setPrefsLoading(true);
+      try {
+        const res = await apiGet<CustomerPrefsResponse>("/api/customer-prefs");
+        if (!active) return;
+        setPrefs(res.prefs ?? []);
+      } catch {
+        if (!active) return;
+        setPrefs([]);
+      } finally {
+        if (active) setPrefsLoading(false);
+      }
+    };
+    load();
+    return () => {
+      active = false;
+    };
+  }, [canViewLogs]);
 
   return (
     <>
@@ -164,6 +232,71 @@ export const ReportsPage = () => {
                         <td>{log.message}</td>
                       </tr>
                     ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            <h3 className="management-section-title" style={{ marginTop: "2rem" }}>Destination creation</h3>
+            <p className="management-intro">All delivery locations created in the system.</p>
+            {locationsLoading ? (
+              <p className="management-loading">Loading destinations…</p>
+            ) : locations.length === 0 ? (
+              <p className="management-loading">No delivery locations yet.</p>
+            ) : (
+              <div className="management-table-wrap">
+                <table className="management-table">
+                  <thead>
+                    <tr>
+                      <th>Display name</th>
+                      <th>Destination key</th>
+                      <th>Notes</th>
+                      <th>Created</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {locations.map((loc) => (
+                      <tr key={loc.id}>
+                        <td>{loc.displayName}</td>
+                        <td>{loc.destinationKey ?? "—"}</td>
+                        <td>{loc.notes ?? "—"}</td>
+                        <td>{loc.createdAt ? new Date(loc.createdAt).toLocaleString() : "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            <h3 className="management-section-title" style={{ marginTop: "2rem" }}>Destinations added to customers</h3>
+            <p className="management-intro">Customer preferences with delivery locations assigned (We deliver).</p>
+            {prefsLoading ? (
+              <p className="management-loading">Loading customer preferences…</p>
+            ) : (
+              <div className="management-table-wrap">
+                <table className="management-table">
+                  <thead>
+                    <tr>
+                      <th>Customer</th>
+                      <th>Delivery type</th>
+                      <th>Delivery locations</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {prefs
+                      .filter((p) => p.deliveryType === "deliver" && p.deliveryLocations && p.deliveryLocations.length > 0)
+                      .map((p) => (
+                        <tr key={p.id}>
+                          <td>{p.displayName}</td>
+                          <td>We deliver</td>
+                          <td>{p.deliveryLocations?.map((l) => l.displayName).join(", ") ?? "—"}</td>
+                        </tr>
+                      ))}
+                    {prefs.filter((p) => p.deliveryType === "deliver" && p.deliveryLocations && p.deliveryLocations.length > 0).length === 0 && (
+                      <tr>
+                        <td colSpan={3}>No customers with delivery locations assigned yet.</td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
