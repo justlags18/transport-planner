@@ -25,10 +25,14 @@ const parseNumber = (value: string): number | null => {
 };
 
 const parseEtaIso = (dateStr: string, timeStr: string): string | null => {
-  const combined = `${dateStr} ${timeStr}`.trim();
+  const timeLabel = timeStr.trim();
+  const combined = `${dateStr} ${timeLabel}`.trim();
   const dt = new Date(combined);
   if (!Number.isNaN(dt.getTime())) {
     return dt.toISOString();
+  }
+  if (timeLabel && timeLabel.toLowerCase() !== "n/a") {
+    return timeLabel;
   }
   return null;
 };
