@@ -802,6 +802,14 @@ button:disabled {
   white-space: nowrap;
 }
 
+.dashboard-sidebar-link-abbrev {
+  font-weight: 700;
+  font-size: 0.82rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-family: "Plus Jakarta Sans", "Segoe UI", sans-serif;
+}
+
 .dashboard-sidebar--collapsed .dashboard-sidebar-link {
   justify-content: center;
 }
