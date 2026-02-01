@@ -7,6 +7,7 @@ import { ChangePasswordPage } from "./pages/ChangePasswordPage";
 import { TodaysPlanPage } from "./pages/TodaysPlanPage";
 import { ManagementPage } from "./pages/ManagementPage";
 import { FleetPage } from "./pages/FleetPage";
+import { ConsignmentsPage } from "./pages/ConsignmentsPage";
 import { ReportsPage } from "./pages/ReportsPage";
 
 const PlaceholderPage = ({ title }: { title: string }) => (
@@ -39,7 +40,7 @@ export const App = () => {
           >
             <Route path="/" element={<TodaysPlanPage />} />
             <Route path="/overview" element={<PlaceholderPage title="Overview" />} />
-            <Route path="/consignments" element={<PlaceholderPage title="Consignments" />} />
+            <Route path="/consignments" element={<ConsignmentsPage />} />
             <Route path="/fleet" element={<FleetPage />} />
             <Route path="/reports" element={<ReportsPage />} />
             <Route path="/management" element={<DeveloperRoute><ManagementPage /></DeveloperRoute>} />
