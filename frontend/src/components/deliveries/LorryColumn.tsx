@@ -253,7 +253,8 @@ const AssignmentRow = ({ assignment, lorryId, showMissingPalletsChip = false, on
         <div>
           <div className="card-title">{deliveryLocation}</div>
           <div className="card-subtitle lorries-board-assignment-client-line">
-            {client} · Job {jobId}{awb !== "—" ? ` · AWB ${awb}` : ""}
+            <span className="lorries-board-assignment-customer">{client}</span>
+            {` · Job ${jobId}${awb !== "—" ? ` · AWB ${awb}` : ""}`}
           </div>
         </div>
         {showMissingPalletsChip && missingPallets && (

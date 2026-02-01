@@ -1471,11 +1471,29 @@ button:disabled {
 
 .lorries-board-assignment {
   flex-shrink: 0;
+  color: #fff;
+  background: #1e293b;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.lorries-board-assignment .card-title,
+.lorries-board-assignment .card-subtitle,
+.lorries-board-assignment .card-meta,
+.lorries-board-assignment .drag-handle {
+  color: #fff;
+}
+
+.lorries-board-assignment .lorries-board-assignment-remove {
+  color: rgba(255, 255, 255, 0.8);
+  border-color: rgba(255, 255, 255, 0.2);
 }
 
 .lorries-board-assignment-client-line {
   font-size: 0.8rem;
-  color: var(--text-muted);
+}
+
+.lorries-board-assignment-customer {
+  font-weight: 600;
 }
 
 .lorries-board-assignment-remove {
