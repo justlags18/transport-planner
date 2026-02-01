@@ -722,6 +722,7 @@ button:disabled {
   display: flex;
   flex-direction: column;
   transition: width 0.2s ease;
+  position: relative;
 }
 
 .dashboard-sidebar--collapsed {
@@ -729,17 +730,24 @@ button:disabled {
 }
 
 .dashboard-sidebar-toggle {
-  margin: 12px 12px 0 12px;
+  position: sticky;
+  top: 50%;
+  align-self: flex-end;
+  margin-right: -18px;
+  transform: translate(50%, -50%);
   height: 40px;
+  width: 40px;
   font-size: 1.1rem;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  background: rgba(15, 20, 25, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.18);
   color: #e2e8f0;
+  z-index: 5;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.35);
 }
 
 .dashboard-sidebar--collapsed .dashboard-sidebar-toggle {
-  margin: 12px auto 0;
+  margin-right: -14px;
 }
 
 .dashboard-sidebar-nav {
