@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "../context/AuthContext";
 import { apiGet, apiPost, apiPatch, apiDelete } from "../api/client";
 import { ROLES, canMakeDeveloper, canAccessManagement, canAccessUsersOrTrucks, type Role } from "../permissions";
@@ -121,6 +121,10 @@ export const ManagementPage = () => {
   const [prefDeliveryType, setPrefDeliveryType] = useState<DeliveryType>("deliver");
   const [prefNotes, setPrefNotes] = useState("");
   const [addPrefLocationIds, setAddPrefLocationIds] = useState<string[]>([]);
+  const [addPrefLocationDropdownOpen, setAddPrefLocationDropdownOpen] = useState(false);
+  const [editPrefLocationDropdownOpen, setEditPrefLocationDropdownOpen] = useState(false);
+  const addPrefLocationDropdownRef = useRef<HTMLDivElement>(null);
+  const editPrefLocationDropdownRef = useRef<HTMLDivElement>(null);
   const [addingPref, setAddingPref] = useState(false);
   const [editingPrefId, setEditingPrefId] = useState<string | null>(null);
   const [editPrefDisplayName, setEditPrefDisplayName] = useState("");
@@ -447,6 +451,42 @@ export const ManagementPage = () => {
     setEditPrefNotes(p.notes ?? "");
     setEditPrefLocationIds(p.deliveryLocationIds ?? []);
   };
+
+  const handleUpdatePref = async () => {
+    if (!editingPrefId) return;
+    setError("");
+    try {
+      const res = await apiPatch<UpdateCustomerPrefResponse>(`/api/customer-prefs/${editingPrefId}`, {
+        displayName: editPrefDisplayName.trim(),
+        customerKey: editPrefCustomerKey.trim() || null,
+        deliveryType: editPrefDeliveryType,
+        notes: editPrefNotes.trim() || null,
+        deliveryLocationIds: editPrefLocationIds,
+      });
+  const toggleAddPrefLocation = (locationId: string) => {
+    setAddPrefLocationIds((prev) =>
+      prev.includes(locationId) ? prev.filter((id) => id !== locationId) : [...prev, locationId]
+    );
+  };
+
+  const togglePrefLocation = (locationId: string) => {
+    setEditPrefLocationIds((prev) =>
+      prev.includes(locationId) ? prev.filter((id) => id !== locationId) : [...prev, locationId]
+    );
+  };
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (addPrefLocationDropdownRef.current && !addPrefLocationDropdownRef.current.contains(e.target as Node)) {
+        setAddPrefLocationDropdownOpen(false);
+      }
+      if (editPrefLocationDropdownRef.current && !editPrefLocationDropdownRef.current.contains(e.target as Node)) {
+        setEditPrefLocationDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const handleUpdatePref = async () => {
     if (!editingPrefId) return;
@@ -993,20 +1033,36 @@ export const ManagementPage = () => {
                     {locations.length === 0 ? (
                       <p className="management-muted" style={{ marginTop: "0.25rem" }}>Add locations in Delivery Locations tab first</p>
                     ) : (
-                      <>
-                        <select
-                          multiple
-                          value={addPrefLocationIds}
-                          onChange={(e) => setAddPrefLocationIds(Array.from(e.target.selectedOptions, (o) => o.value))}
-                          className="management-select management-location-select"
-                          size={Math.min(6, Math.max(3, locations.length))}
+                      <div className="management-dropdown-wrap" ref={addPrefLocationDropdownRef}>
+                        <button
+                          type="button"
+                          className="management-select management-dropdown-trigger"
+                          onClick={() => setAddPrefLocationDropdownOpen((o) => !o)}
+                          aria-expanded={addPrefLocationDropdownOpen}
+                          aria-haspopup="listbox"
                         >
-                          {locations.map((loc) => (
-                            <option key={loc.id} value={loc.id}>{loc.displayName}</option>
-                          ))}
-                        </select>
-                        <p className="management-muted" style={{ marginTop: "0.25rem", fontSize: "0.8rem" }}>Hold Ctrl (Windows) or Cmd (Mac) to select multiple</p>
-                      </>
+                          <span>
+                            {addPrefLocationIds.length === 0
+                              ? "— Select delivery locations —"
+                              : `${addPrefLocationIds.length} selected`}
+                          </span>
+                          <span className="management-dropdown-chevron" aria-hidden>▼</span>
+                        </button>
+                        {addPrefLocationDropdownOpen && (
+                          <div className="management-dropdown-panel" role="listbox">
+                            {locations.map((loc) => (
+                              <label key={loc.id} className="management-dropdown-option management-checkbox-label">
+                                <input
+                                  type="checkbox"
+                                  checked={addPrefLocationIds.includes(loc.id)}
+                                  onChange={() => toggleAddPrefLocation(loc.id)}
+                                />
+                                <span>{loc.displayName}</span>
+                              </label>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     )}
                   </label>
                 )}
@@ -1096,17 +1152,36 @@ export const ManagementPage = () => {
                             locations.length === 0 ? (
                               <span className="management-muted">Add locations in Delivery Locations tab</span>
                             ) : (
-                              <select
-                                multiple
-                                value={editPrefLocationIds}
-                                onChange={(e) => setEditPrefLocationIds(Array.from(e.target.selectedOptions, (o) => o.value))}
-                                className="management-select management-location-select management-select-small"
-                                size={Math.min(4, Math.max(2, locations.length))}
-                              >
-                                {locations.map((loc) => (
-                                  <option key={loc.id} value={loc.id}>{loc.displayName}</option>
-                                ))}
-                              </select>
+                              <div className="management-dropdown-wrap management-dropdown-wrap-inline" ref={editPrefLocationDropdownRef}>
+                                <button
+                                  type="button"
+                                  className="management-select management-dropdown-trigger management-select-small"
+                                  onClick={() => setEditPrefLocationDropdownOpen((o) => !o)}
+                                  aria-expanded={editPrefLocationDropdownOpen}
+                                  aria-haspopup="listbox"
+                                >
+                                  <span>
+                                    {editPrefLocationIds.length === 0
+                                      ? "— Select —"
+                                      : `${editPrefLocationIds.length} selected`}
+                                  </span>
+                                  <span className="management-dropdown-chevron" aria-hidden>▼</span>
+                                </button>
+                                {editPrefLocationDropdownOpen && (
+                                  <div className="management-dropdown-panel" role="listbox">
+                                    {locations.map((loc) => (
+                                      <label key={loc.id} className="management-dropdown-option management-checkbox-label">
+                                        <input
+                                          type="checkbox"
+                                          checked={editPrefLocationIds.includes(loc.id)}
+                                          onChange={() => togglePrefLocation(loc.id)}
+                                        />
+                                        <span>{loc.displayName}</span>
+                                      </label>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
                             )
                           ) : (
                             p.deliveryLocations?.length ? p.deliveryLocations.map((l) => l.displayName).join(", ") : "—"
