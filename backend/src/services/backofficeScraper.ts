@@ -214,10 +214,15 @@ const extractRows = (
         ?? "";
       const selectedTime = key.includes("eta") ? parseSelectTime($(cell)) : null;
       const preferDataTime = key.includes("eta") && (cellText.toLowerCase() === "in" || !cellText);
+      const dataText = $(cell).attr("data-text")
+        ?? $(cell).attr("data-desc")
+        ?? $(cell).attr("data-description")
+        ?? $(cell).find("[data-text]").first().attr("data-text")
+        ?? "";
       const value =
         preferDataTime && dataTime
           ? dataTime.trim()
-          : (selectedTime ?? (cellText || titleText.trim()));
+          : (selectedTime ?? (cellText || dataText.trim() || titleText.trim()));
       record[key] = value;
 
       if ($(cell).attr("data-id") === "flightinfo") {
