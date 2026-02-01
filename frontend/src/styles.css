@@ -703,6 +703,56 @@ button:disabled {
   min-height: 0;
 }
 
+/* Deliveries page: Fleet-style layout */
+.deliveries-job-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.deliveries-lorry-grid.fleet-grid {
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+}
+
+.deliveries-lorry-card {
+  min-height: 200px;
+  display: flex;
+  flex-direction: column;
+}
+
+.deliveries-lorry-card .lorry-drop-indicator {
+  margin-top: 8px;
+}
+
+.deliveries-lorry-card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+  max-height: 240px;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.deliveries-lorry-card-list .card,
+.deliveries-lorry-card-list .assignment-card-compact {
+  flex-shrink: 0;
+}
+
+.assignment-card-compact {
+  padding: 10px 12px;
+  gap: 4px;
+}
+
+.assignment-card-compact .card-title {
+  font-size: 0.88rem;
+}
+
+.assignment-card-compact .card-subtitle,
+.assignment-card-compact .card-meta {
+  font-size: 0.75rem;
+}
+
 @media (max-width: 900px) {
   .deliveries-columns {
     grid-template-columns: 1fr;

@@ -25,7 +25,7 @@ export const DeliveriesPage = () => {
     refreshInFlight.current = true;
     try {
       const [consRes, lorriesRes] = await Promise.all([
-        apiGet<ConsignmentResponse>("/api/consignments?active=1"),
+        apiGet<ConsignmentResponse>("/api/consignments?active=1&deliveryOnly=1"),
         apiGet<LorryDTO[]>("/api/lorries"),
       ]);
       setConsignments(consRes.items ?? []);
@@ -120,45 +120,53 @@ export const DeliveriesPage = () => {
   return (
     <>
       <h2 className="dashboard-page-title">Deliveries</h2>
-      <div className="dashboard-page-content deliveries-page">
-        <div className="deliveries-toolbar">
-          <label className="deliveries-filter-label">
-            Delivery location
-            <select
-              className="management-select deliveries-filter-select"
-              value={deliveryLocationFilter}
-              onChange={(e) => setDeliveryLocationFilter(e.target.value)}
-              aria-label="Filter by delivery location"
-            >
-              <option value="all">All delivery locations</option>
-              {deliveryLocations.map((loc) => (
-                <option key={loc.id} value={loc.id}>
-                  {loc.displayName}
-                </option>
-              ))}
-            </select>
-          </label>
-          <span className="deliveries-filter-muted">
-            {filteredConsignments.length} job{filteredConsignments.length !== 1 ? "s" : ""}
-            {selectedLocation ? ` at ${selectedLocation.displayName}` : " (all)"}
-          </span>
-        </div>
+      <div className="dashboard-page-content">
+        {error ? (
+          <div className="management-error" role="alert">
+            {error}
+          </div>
+        ) : null}
 
-        {error ? <div className="management-error" role="alert">{error}</div> : null}
+        {loading ? (
+          <p className="management-loading">Loading deliveries…</p>
+        ) : (
+          <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+            <p className="management-intro">
+              Jobs shown are &quot;We deliver&quot; only (configured in Management → Customer Pref). Filter by delivery location, then drag jobs onto lorries.
+            </p>
 
-        <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-          <div className="deliveries-columns">
-            <section className="panel panel-unassigned deliveries-panel">
-              <div className="panel-header">
-                <h3>Unassigned jobs</h3>
-                <span className="muted">{unassigned.length} jobs</span>
-              </div>
-              {loading ? (
-                <div className="empty-state">Loading…</div>
-              ) : unassigned.length === 0 ? (
-                <div className="empty-state">No unassigned jobs. Use the filter or assign from Consignments.</div>
+            <section className="management-section">
+              <h3 className="management-section-title">Filter</h3>
+              <form className="management-create-form" onSubmit={(e) => e.preventDefault()}>
+                <label>
+                  Delivery location
+                  <select
+                    className="management-select"
+                    value={deliveryLocationFilter}
+                    onChange={(e) => setDeliveryLocationFilter(e.target.value)}
+                    aria-label="Filter by delivery location"
+                  >
+                    <option value="all">All delivery locations</option>
+                    {deliveryLocations.map((loc) => (
+                      <option key={loc.id} value={loc.id}>
+                        {loc.displayName}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <span className="management-muted" style={{ alignSelf: "center" }}>
+                  {filteredConsignments.length} job{filteredConsignments.length !== 1 ? "s" : ""}
+                  {selectedLocation ? ` at ${selectedLocation.displayName}` : " (all)"}
+                </span>
+              </form>
+            </section>
+
+            <section className="management-section">
+              <h3 className="management-section-title">Unassigned jobs</h3>
+              {unassigned.length === 0 ? (
+                <p className="management-muted">No unassigned jobs. Change the filter or assign jobs from Consignments.</p>
               ) : (
-                <div className="card-list delivery-job-list">
+                <div className="deliveries-job-grid">
                   {unassigned.map((consignment) => (
                     <DeliveryJobCard
                       key={consignment.id}
@@ -170,21 +178,16 @@ export const DeliveriesPage = () => {
               )}
             </section>
 
-            <section className="panel panel-lorries deliveries-panel">
-              <div className="panel-header">
-                <h3>Lorries</h3>
-                <span className="muted">{lorries.length} lorries</span>
-              </div>
-              {loading ? (
-                <div className="empty-state">Loading lorries…</div>
-              ) : lorries.length === 0 ? (
-                <div className="empty-state">No lorries. Add trucks in Fleet / Management.</div>
+            <section className="management-section">
+              <h3 className="management-section-title">Lorries</h3>
+              {lorries.length === 0 ? (
+                <p className="management-muted">No lorries. Add trucks in Fleet or Management.</p>
               ) : (
-                <LorryBoard lorries={lorries} />
+                <LorryBoard lorries={lorries} variant="fleet-grid" />
               )}
             </section>
-          </div>
-        </DndContext>
+          </DndContext>
+        )}
       </div>
     </>
   );

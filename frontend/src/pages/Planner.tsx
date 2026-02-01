@@ -38,6 +38,7 @@ export type LorryDTO = {
   updatedAt: string;
   usedPallets: number;
   assignments: AssignmentDTO[];
+  status?: "on" | "off" | "service";
 };
 
 type ConsignmentResponse = { items: ConsignmentDTO[] };
