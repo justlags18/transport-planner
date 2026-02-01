@@ -19,7 +19,7 @@ routesRouter.get("/api/version", (_req, res) => {
   res.json({ name: pkg.name, version: pkg.version });
 });
 
-routesRouter.use(authMiddleware);
+routesRouter.use("/api", authMiddleware);
 routesRouter.use("/", consignmentsRouter);
 routesRouter.use("/", lorriesRouter);
 routesRouter.use("/", palletOverridesRouter);
