@@ -10,6 +10,7 @@ type ConsignmentDTO = {
   palletsFromSite: number | null;
   lastSeenAt: string;
   archivedAt: string | null;
+  createdAt: string;
 };
 
 type ConsignmentResponse = { items: ConsignmentDTO[] };
@@ -24,6 +25,23 @@ const formatDate = (value: string | null) => {
   if (!value) return "-";
   const dt = new Date(value);
   return Number.isNaN(dt.getTime()) ? value : dt.toLocaleDateString();
+};
+
+const getLastMassCheck = () => {
+  const now = new Date();
+  const cutoff = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate(),
+    6,
+    0,
+    0,
+    0,
+  );
+  if (now < cutoff) {
+    cutoff.setDate(cutoff.getDate() - 1);
+  }
+  return cutoff;
 };
 
 export const ConsignmentsPage = () => {
@@ -69,6 +87,8 @@ export const ConsignmentsPage = () => {
       }),
     [items],
   );
+
+  const massCheckCutoff = useMemo(getLastMassCheck, []);
 
   return (
     <>
@@ -142,29 +162,28 @@ export const ConsignmentsPage = () => {
                 <tr>
                   <th>PML Ref</th>
                   <th>Customer</th>
-                  <th>Destination</th>
-                  <th>ETA</th>
-                  <th>Status</th>
+                  <th>ETA &amp; Time</th>
                   <th>Pallets</th>
-                  <th>Last seen</th>
                 </tr>
               </thead>
               <tbody>
-                {sorted.map((item) => (
+                {sorted.map((item) => {
+                  const createdAt = new Date(item.createdAt);
+                  const isNew = !Number.isNaN(createdAt.getTime()) && createdAt > massCheckCutoff;
+                  return (
                   <tr key={item.id}>
-                    <td>{item.id}</td>
-                    <td>{item.customerNameRaw ?? "-"}</td>
-                    <td>{item.destinationRaw ?? "-"}</td>
-                    <td>{formatDate(item.etaIso)}</td>
                     <td>
-                      <span className="consignments-status">
-                        {item.status ? item.status : "Unknown"}
-                      </span>
+                      <div className="consignments-ref">
+                        <span>{item.id}</span>
+                        {isNew ? <span className="consignments-new">New</span> : null}
+                      </div>
                     </td>
+                    <td>{item.customerNameRaw ?? "-"}</td>
+                    <td>{formatDateTime(item.etaIso)}</td>
                     <td>{item.palletsFromSite ?? "-"}</td>
-                    <td>{formatDateTime(item.lastSeenAt)}</td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>

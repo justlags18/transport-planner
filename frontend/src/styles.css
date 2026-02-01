@@ -1091,6 +1091,26 @@ button:disabled {
   color: var(--text-primary);
 }
 
+.consignments-ref {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.consignments-new {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(239, 68, 68, 0.18);
+  color: var(--danger);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
 .management-btn-link {
   background: transparent;
   border: none;
