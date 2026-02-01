@@ -22,6 +22,7 @@ model Consignment {
   status         String?
   palletsFromSite Int?
   rawJson        String
+  deliveryLocationId String?  // Optional override for delivery location
   lastSeenAt     DateTime
   archivedAt     DateTime?
   createdAt      DateTime @default(now())
@@ -29,11 +30,13 @@ model Consignment {
 
   assignments    Assignment[]
   palletOverride PalletOverride?
+  deliveryLocation DeliveryLocation? @relation(fields: [deliveryLocationId], references: [id], onDelete: SetNull)
 
   @@index([customerKey])
   @@index([destinationKey])
   @@index([status])
   @@index([lastSeenAt])
+  @@index([deliveryLocationId])
 }
 
 model Lorry {
