@@ -49,7 +49,7 @@ export const DeliveriesPage = () => {
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-    useSensor(KeyboardSensor, { activationConstraint: { delay: 0, distance: 0 } })
+    useSensor(KeyboardSensor)
   );
 
   const refreshData = useCallback(async () => {
