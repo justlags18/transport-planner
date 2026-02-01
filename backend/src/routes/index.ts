@@ -5,6 +5,7 @@ import { healthRouter } from "./health";
 import { authRouter } from "./auth";
 import { usersRouter } from "./users";
 import { customerPrefsRouter } from "./customerPrefs";
+import { deliveryLocationsRouter } from "./deliveryLocations";
 import { consignmentsRouter } from "./consignments";
 import { lorriesRouter } from "./lorries";
 import { palletOverridesRouter } from "./palletOverrides";
@@ -30,6 +31,7 @@ routesRouter.use("/", assignmentsRouter);
 // Planner+ can access customer prefs (must be before Management-only block)
 routesRouter.use(requirePlannerOrAbove);
 routesRouter.use("/", customerPrefsRouter);
+routesRouter.use("/", deliveryLocationsRouter);
 
 routesRouter.use(requireManagementOrDeveloper);
 routesRouter.use("/", usersRouter);

@@ -1062,6 +1062,23 @@ button:disabled {
   align-items: center;
 }
 
+.management-location-checkboxes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  max-width: 280px;
+}
+
+.management-location-checkboxes .management-checkbox-label {
+  display: inline-flex;
+  white-space: nowrap;
+}
+
+.management-muted {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
 .management-btn {
   padding: 8px 14px;
   font-size: 0.875rem;

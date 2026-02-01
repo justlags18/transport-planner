@@ -50,9 +50,26 @@ type CustomerPrefRow = {
   customerKey: string | null;
   deliveryType: string;
   notes: string | null;
+  deliveryLocationIds?: string[];
+  deliveryLocations?: { id: string; displayName: string }[];
   createdAt?: string;
   updatedAt?: string;
 };
+
+type DeliveryLocationRow = {
+  id: string;
+  displayName: string;
+  destinationKey: string | null;
+  notes: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+type AvailableDestination = { destinationKey: string; displayName: string };
+type AvailableDestinationsResponse = { ok: boolean; destinations: AvailableDestination[] };
+type ListDeliveryLocationsResponse = { ok: boolean; locations: DeliveryLocationRow[] };
+type CreateDeliveryLocationResponse = { ok: boolean; location: DeliveryLocationRow };
+type UpdateDeliveryLocationResponse = { ok: boolean; location: DeliveryLocationRow };
 
 type ListUsersResponse = { ok: boolean; users: UserRow[] };
 type CreateUserResponse = { ok: boolean; user: UserRow; temporaryPassword?: string };
@@ -70,7 +87,7 @@ export const ManagementPage = () => {
   const { user: currentUser } = useAuth();
   const role = currentUser?.role ?? "Clerk";
   const showUsersTrucks = canAccessUsersOrTrucks(role);
-  const [activeTab, setActiveTab] = useState<"users" | "trucks" | "customer-pref">("customer-pref");
+  const [activeTab, setActiveTab] = useState<"users" | "trucks" | "customer-pref" | "delivery-locations">("customer-pref");
 
   // Users state
   const [users, setUsers] = useState<UserRow[]>([]);
@@ -111,10 +128,25 @@ export const ManagementPage = () => {
   const [editPrefCustomerKey, setEditPrefCustomerKey] = useState("");
   const [editPrefDeliveryType, setEditPrefDeliveryType] = useState<DeliveryType>("deliver");
   const [editPrefNotes, setEditPrefNotes] = useState("");
+  const [editPrefLocationIds, setEditPrefLocationIds] = useState<string[]>([]);
   const [deletingPrefId, setDeletingPrefId] = useState<string | null>(null);
   const [availableCustomers, setAvailableCustomers] = useState<AvailableCustomer[]>([]);
   const [availableCustomersLoading, setAvailableCustomersLoading] = useState(false);
   const [selectedClientKey, setSelectedClientKey] = useState("");
+
+  // Delivery Locations state
+  const [locations, setLocations] = useState<DeliveryLocationRow[]>([]);
+  const [locationsLoading, setLocationsLoading] = useState(false);
+  const [availableDestinations, setAvailableDestinations] = useState<AvailableDestination[]>([]);
+  const [availableDestinationsLoading, setAvailableDestinationsLoading] = useState(false);
+  const [selectedDestinationKey, setSelectedDestinationKey] = useState("");
+  const [locationNotes, setLocationNotes] = useState("");
+  const [addingLocation, setAddingLocation] = useState(false);
+  const [editingLocationId, setEditingLocationId] = useState<string | null>(null);
+  const [editLocationDisplayName, setEditLocationDisplayName] = useState("");
+  const [editLocationDestinationKey, setEditLocationDestinationKey] = useState("");
+  const [editLocationNotes, setEditLocationNotes] = useState("");
+  const [deletingLocationId, setDeletingLocationId] = useState<string | null>(null);
 
   const [error, setError] = useState("");
 
@@ -208,8 +240,49 @@ export const ManagementPage = () => {
     if (activeTab === "customer-pref") {
       loadCustomerPrefs();
       loadAvailableCustomers();
+      loadDeliveryLocations();
     }
-  }, [activeTab, loadCustomerPrefs, loadAvailableCustomers]);
+  }, [activeTab, loadCustomerPrefs, loadAvailableCustomers, loadDeliveryLocations]);
+
+  const loadDeliveryLocations = useCallback(async () => {
+    setLocationsLoading(true);
+    setError("");
+    try {
+      const res = await apiGet<ListDeliveryLocationsResponse>("/api/delivery-locations");
+      if (res.ok && res.locations) setLocations(res.locations);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load delivery locations");
+    } finally {
+      setLocationsLoading(false);
+    }
+  }, []);
+
+  const loadAvailableDestinations = useCallback(async () => {
+    setAvailableDestinationsLoading(true);
+    setError("");
+    try {
+      const res = await apiGet<AvailableDestinationsResponse>("/api/delivery-locations/available-destinations");
+      if (res.ok && res.destinations) {
+        setAvailableDestinations(res.destinations);
+        setSelectedDestinationKey((prev) => {
+          if (!prev) return "";
+          const stillThere = res.destinations.some((d) => d.destinationKey === prev);
+          return stillThere ? prev : "";
+        });
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load destination list");
+    } finally {
+      setAvailableDestinationsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === "delivery-locations") {
+      loadDeliveryLocations();
+      loadAvailableDestinations();
+    }
+  }, [activeTab, loadDeliveryLocations, loadAvailableDestinations]);
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -395,6 +468,7 @@ export const ManagementPage = () => {
     setEditPrefCustomerKey(p.customerKey ?? "");
     setEditPrefDeliveryType((p.deliveryType as DeliveryType) || "deliver");
     setEditPrefNotes(p.notes ?? "");
+    setEditPrefLocationIds(p.deliveryLocationIds ?? []);
   };
 
   const handleUpdatePref = async () => {
@@ -406,10 +480,12 @@ export const ManagementPage = () => {
         customerKey: editPrefCustomerKey.trim() || null,
         deliveryType: editPrefDeliveryType,
         notes: editPrefNotes.trim() || null,
+        deliveryLocationIds: editPrefLocationIds,
       });
       if (res.ok && res.pref) {
+        const updated = res.pref as CustomerPrefRow;
         setPrefs((prev) => {
-          const next = prev.map((x) => (x.id === editingPrefId ? res.pref! : x));
+          const next = prev.map((x) => (x.id === editingPrefId ? { ...x, ...updated } : x));
           return next.sort((a, b) => {
             const typeOrder = (t: string) => (t === "deliver" ? 1 : 2);
             if (typeOrder(a.deliveryType) !== typeOrder(b.deliveryType)) return typeOrder(a.deliveryType) - typeOrder(b.deliveryType);
@@ -423,6 +499,12 @@ export const ManagementPage = () => {
     }
   };
 
+  const togglePrefLocation = (locationId: string) => {
+    setEditPrefLocationIds((prev) =>
+      prev.includes(locationId) ? prev.filter((id) => id !== locationId) : [...prev, locationId]
+    );
+  };
+
   const handleDeletePref = async (id: string) => {
     setError("");
     setDeletingPrefId(id);
@@ -434,6 +516,75 @@ export const ManagementPage = () => {
       setError(e instanceof Error ? e.message : "Failed to delete customer preference");
     } finally {
       setDeletingPrefId(null);
+    }
+  };
+
+  const handleAddLocation = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const dest = availableDestinations.find((d) => d.destinationKey === selectedDestinationKey);
+    if (!dest) {
+      setError("Please select a destination from the list.");
+      return;
+    }
+    setError("");
+    setAddingLocation(true);
+    try {
+      const res = await apiPost<CreateDeliveryLocationResponse>("/api/delivery-locations", {
+        displayName: dest.displayName,
+        destinationKey: dest.destinationKey,
+        notes: locationNotes.trim() || undefined,
+      });
+      if (res.ok && res.location) {
+        setLocations((prev) => [...prev, res.location!].sort((a, b) => a.displayName.localeCompare(b.displayName)));
+        setSelectedDestinationKey("");
+        setLocationNotes("");
+        loadAvailableDestinations();
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to add delivery location");
+    } finally {
+      setAddingLocation(false);
+    }
+  };
+
+  const startEditLocation = (loc: DeliveryLocationRow) => {
+    setEditingLocationId(loc.id);
+    setEditLocationDisplayName(loc.displayName);
+    setEditLocationDestinationKey(loc.destinationKey ?? "");
+    setEditLocationNotes(loc.notes ?? "");
+  };
+
+  const handleUpdateLocation = async () => {
+    if (!editingLocationId) return;
+    setError("");
+    try {
+      const res = await apiPatch<UpdateDeliveryLocationResponse>(`/api/delivery-locations/${editingLocationId}`, {
+        displayName: editLocationDisplayName.trim(),
+        destinationKey: editLocationDestinationKey.trim() || null,
+        notes: editLocationNotes.trim() || null,
+      });
+      if (res.ok && res.location) {
+        setLocations((prev) =>
+          prev.map((l) => (l.id === editingLocationId ? res.location! : l)).sort((a, b) => a.displayName.localeCompare(b.displayName))
+        );
+        setEditingLocationId(null);
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to update delivery location");
+    }
+  };
+
+  const handleDeleteLocation = async (id: string) => {
+    setError("");
+    setDeletingLocationId(id);
+    try {
+      await apiDelete(`/api/delivery-locations/${id}`);
+      setLocations((prev) => prev.filter((l) => l.id !== id));
+      loadAvailableDestinations();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to delete delivery location");
+    } finally {
+      setDeletingLocationId(null);
     }
   };
 
@@ -460,6 +611,13 @@ export const ManagementPage = () => {
           onClick={() => setActiveTab("customer-pref")}
         >
           Customer Pref
+        </button>
+        <button
+          type="button"
+          className={`management-tab${activeTab === "delivery-locations" ? " management-tab--active" : ""}`}
+          onClick={() => setActiveTab("delivery-locations")}
+        >
+          Delivery Locations
         </button>
         {showUsersTrucks && (
           <>
@@ -891,6 +1049,7 @@ export const ManagementPage = () => {
                       <th>Display name</th>
                       <th>Customer key</th>
                       <th>Delivery type</th>
+                      <th>Delivery locations</th>
                       <th>Notes</th>
                       <th>Actions</th>
                     </tr>
@@ -940,6 +1099,28 @@ export const ManagementPage = () => {
                         </td>
                         <td>
                           {editingPrefId === p.id ? (
+                            <div className="management-location-checkboxes">
+                              {locations.length === 0 ? (
+                                <span className="management-muted">Add locations in Delivery Locations tab</span>
+                              ) : (
+                                locations.map((loc) => (
+                                  <label key={loc.id} className="management-checkbox-label">
+                                    <input
+                                      type="checkbox"
+                                      checked={editPrefLocationIds.includes(loc.id)}
+                                      onChange={() => togglePrefLocation(loc.id)}
+                                    />
+                                    <span>{loc.displayName}</span>
+                                  </label>
+                                ))
+                              )}
+                            </div>
+                          ) : (
+                            p.deliveryLocations?.length ? p.deliveryLocations.map((l) => l.displayName).join(", ") : "—"
+                          )}
+                        </td>
+                        <td>
+                          {editingPrefId === p.id ? (
                             <input
                               type="text"
                               value={editPrefNotes}
@@ -967,6 +1148,146 @@ export const ManagementPage = () => {
                                 disabled={deletingPrefId === p.id}
                               >
                                 {deletingPrefId === p.id ? "Deleting…" : "Remove"}
+                              </button>
+                            </>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+        </>
+      )}
+
+      {activeTab === "delivery-locations" && (
+        <>
+          <p className="management-intro">
+            Manage delivery locations pulled from consignments (scraper). Use these with Customer Pref to mark which locations each customer delivers to for easier organisation.
+          </p>
+
+          <section className="management-section">
+            <h3 className="management-section-title">Add delivery location</h3>
+            {availableDestinationsLoading ? (
+              <p className="management-loading">Loading destination list…</p>
+            ) : (
+              <form className="management-create-form" onSubmit={handleAddLocation}>
+                <label>
+                  Destination (from consignments)
+                  <select
+                    value={selectedDestinationKey}
+                    onChange={(e) => setSelectedDestinationKey(e.target.value)}
+                    className="management-select"
+                    required
+                  >
+                    <option value="">— Select a destination —</option>
+                    {availableDestinations.map((d) => (
+                      <option key={d.destinationKey} value={d.destinationKey}>
+                        {d.displayName}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                {availableDestinations.length === 0 && !availableDestinationsLoading && (
+                  <p className="management-intro" style={{ marginTop: "0.5rem" }}>
+                    No destinations from consignments yet. Run the scraper or add consignments; new destinations will appear here.
+                  </p>
+                )}
+                <label>
+                  Notes (optional)
+                  <input
+                    type="text"
+                    value={locationNotes}
+                    onChange={(e) => setLocationNotes(e.target.value)}
+                    placeholder="e.g. Gate 2, loading bay"
+                    className="management-input"
+                  />
+                </label>
+                <button
+                  type="submit"
+                  className="management-btn management-btn-primary"
+                  disabled={addingLocation || availableDestinations.length === 0}
+                >
+                  {addingLocation ? "Adding…" : "Add"}
+                </button>
+              </form>
+            )}
+          </section>
+
+          <section className="management-section">
+            <h3 className="management-section-title">Delivery locations</h3>
+            {locationsLoading ? (
+              <p className="management-loading">Loading delivery locations…</p>
+            ) : (
+              <div className="management-table-wrap">
+                <table className="management-table">
+                  <thead>
+                    <tr>
+                      <th>Display name</th>
+                      <th>Destination key</th>
+                      <th>Notes</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {locations.map((loc) => (
+                      <tr key={loc.id}>
+                        <td>
+                          {editingLocationId === loc.id ? (
+                            <input
+                              type="text"
+                              value={editLocationDisplayName}
+                              onChange={(e) => setEditLocationDisplayName(e.target.value)}
+                              className="management-input management-input-inline"
+                            />
+                          ) : (
+                            loc.displayName
+                          )}
+                        </td>
+                        <td>
+                          {editingLocationId === loc.id ? (
+                            <input
+                              type="text"
+                              value={editLocationDestinationKey}
+                              onChange={(e) => setEditLocationDestinationKey(e.target.value)}
+                              className="management-input management-input-inline"
+                              placeholder="Optional"
+                            />
+                          ) : (
+                            loc.destinationKey ?? "—"
+                          )}
+                        </td>
+                        <td>
+                          {editingLocationId === loc.id ? (
+                            <input
+                              type="text"
+                              value={editLocationNotes}
+                              onChange={(e) => setEditLocationNotes(e.target.value)}
+                              className="management-input management-input-inline"
+                              placeholder="Optional"
+                            />
+                          ) : (
+                            loc.notes ?? "—"
+                          )}
+                        </td>
+                        <td>
+                          {editingLocationId === loc.id ? (
+                            <>
+                              <button type="button" className="management-btn management-btn-small" onClick={handleUpdateLocation}>Save</button>
+                              <button type="button" className="management-btn management-btn-small" onClick={() => setEditingLocationId(null)}>Cancel</button>
+                            </>
+                          ) : (
+                            <>
+                              <button type="button" className="management-btn management-btn-small management-btn-link" onClick={() => startEditLocation(loc)}>Edit</button>
+                              <button
+                                type="button"
+                                className="management-btn management-btn-small management-btn-danger"
+                                onClick={() => handleDeleteLocation(loc.id)}
+                                disabled={deletingLocationId === loc.id}
+                              >
+                                {deletingLocationId === loc.id ? "Deleting…" : "Remove"}
                               </button>
                             </>
                           )}

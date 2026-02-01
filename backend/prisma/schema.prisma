@@ -117,6 +117,32 @@ model CustomerPref {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
+  locations    CustomerPrefDeliveryLocation[]
+
   @@index([deliveryType])
   @@index([customerKey])
+}
+
+model DeliveryLocation {
+  id           String   @id @default(cuid())
+  displayName  String
+  destinationKey String?  // optional link to consignments
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  prefs        CustomerPrefDeliveryLocation[]
+
+  @@index([destinationKey])
+}
+
+model CustomerPrefDeliveryLocation {
+  customerPrefId     String
+  deliveryLocationId String
+
+  customerPref     CustomerPref     @relation(fields: [customerPrefId], references: [id], onDelete: Cascade)
+  deliveryLocation DeliveryLocation @relation(fields: [deliveryLocationId], references: [id], onDelete: Cascade)
+
+  @@id([customerPrefId, deliveryLocationId])
+  @@index([deliveryLocationId])
 }

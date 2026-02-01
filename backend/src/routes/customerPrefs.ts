@@ -17,6 +17,7 @@ const updateCustomerPrefSchema = z.object({
   customerKey: z.string().trim().optional().nullable(),
   deliveryType: z.enum(DELIVERY_TYPES).optional(),
   notes: z.string().trim().optional().nullable(),
+  deliveryLocationIds: z.array(z.string()).optional(),
 });
 
 export const customerPrefsRouter = Router();
@@ -25,8 +26,17 @@ customerPrefsRouter.get("/api/customer-prefs", async (_req: AuthRequest, res: Re
   try {
     const prefs = await prisma.customerPref.findMany({
       orderBy: [{ deliveryType: "asc" }, { displayName: "asc" }],
+      include: {
+        locations: { include: { deliveryLocation: true } },
+      },
     });
-    res.json({ ok: true, prefs });
+    const prefsWithLocations = prefs.map((p) => ({
+      ...p,
+      deliveryLocationIds: p.locations.map((l) => l.deliveryLocationId),
+      deliveryLocations: p.locations.map((l) => ({ id: l.deliveryLocation.id, displayName: l.deliveryLocation.displayName })),
+      locations: undefined,
+    }));
+    res.json({ ok: true, prefs: prefsWithLocations });
   } catch (err) {
     console.error("List customer prefs error:", err);
     res.status(500).json({ ok: false, error: "Failed to list customer preferences" });
@@ -103,6 +113,18 @@ customerPrefsRouter.patch("/api/customer-prefs/:id", async (req: AuthRequest, re
       return;
     }
 
+    if (parsed.data.deliveryLocationIds !== undefined) {
+      await prisma.customerPrefDeliveryLocation.deleteMany({ where: { customerPrefId: id } });
+      if (parsed.data.deliveryLocationIds.length > 0) {
+        await prisma.customerPrefDeliveryLocation.createMany({
+          data: parsed.data.deliveryLocationIds.map((deliveryLocationId) => ({
+            customerPrefId: id,
+            deliveryLocationId,
+          })),
+        });
+      }
+    }
+
     const pref = await prisma.customerPref.update({
       where: { id },
       data: {
@@ -111,9 +133,19 @@ customerPrefsRouter.patch("/api/customer-prefs/:id", async (req: AuthRequest, re
         ...(parsed.data.deliveryType !== undefined && { deliveryType: parsed.data.deliveryType }),
         ...(parsed.data.notes !== undefined && { notes: parsed.data.notes }),
       },
+      include: {
+        locations: { include: { deliveryLocation: true } },
+      },
     });
 
-    res.json({ ok: true, pref });
+    const prefResponse = {
+      ...pref,
+      deliveryLocationIds: pref.locations.map((l) => l.deliveryLocationId),
+      deliveryLocations: pref.locations.map((l) => ({ id: l.deliveryLocation.id, displayName: l.deliveryLocation.displayName })),
+      locations: undefined,
+    };
+
+    res.json({ ok: true, pref: prefResponse });
   } catch (err) {
     console.error("Update customer pref error:", err);
     res.status(500).json({ ok: false, error: "Failed to update customer preference" });
