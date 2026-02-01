@@ -17,6 +17,7 @@ export type NavItem = {
 export const NAV_ITEMS: NavItem[] = [
   { path: "/overview", label: "Overview" },
   { path: "/", label: "Today's Plan" },
+  { path: "/deliveries", label: "Deliveries" },
   { path: "/consignments", label: "Consignments" },
   { path: "/fleet", label: "Fleet" },
   { path: "/reports", label: "Reports" },
