@@ -4,6 +4,16 @@ import { prisma } from "../db";
 
 export type Role = "Clerk" | "Planner" | "Management" | "Developer";
 
+const roleValues: Role[] = ["Clerk", "Planner", "Management", "Developer"];
+const roleSet = new Set<Role>(roleValues);
+
+export const normalizeRole = (value: string): Role => {
+  if (roleSet.has(value as Role)) {
+    return value as Role;
+  }
+  return "Clerk";
+};
+
 const JWT_SECRET = process.env.JWT_SECRET || "dev-secret-change-in-production";
 
 export type JwtPayload = {
@@ -59,7 +69,7 @@ export async function authMiddleware(req: AuthRequest, res: Response, next: Next
   req.user = {
     userId: user.id,
     email: user.email,
-    role: user.role,
+    role: normalizeRole(user.role),
     forcePasswordChange: user.forcePasswordChange,
   };
   next();

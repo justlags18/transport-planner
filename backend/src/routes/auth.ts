@@ -2,7 +2,7 @@ import { Router, Response } from "express";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { prisma } from "../db";
-import { createToken, verifyToken, type AuthRequest } from "../middleware/auth";
+import { createToken, normalizeRole, verifyToken, type AuthRequest } from "../middleware/auth";
 
 export const authRouter = Router();
 
@@ -45,7 +45,7 @@ authRouter.post("/api/auth/login", async (req, res: Response) => {
     const payload = {
       userId: user.id,
       email: user.email,
-      role: user.role,
+      role: normalizeRole(user.role),
       forcePasswordChange: user.forcePasswordChange,
     };
 
@@ -127,7 +127,7 @@ authRouter.post("/api/auth/change-password", async (req: AuthRequest, res: Respo
 
     const parsed = changePasswordSchema.safeParse(req.body);
     if (!parsed.success) {
-      const msg = parsed.error.errors[0]?.message ?? "Invalid request";
+      const msg = parsed.error.issues[0]?.message ?? "Invalid request";
       res.status(400).json({ ok: false, error: msg });
       return;
     }
@@ -159,7 +159,7 @@ authRouter.post("/api/auth/change-password", async (req: AuthRequest, res: Respo
     const newPayload = {
       userId: user.id,
       email: user.email,
-      role: user.role,
+      role: normalizeRole(user.role),
       forcePasswordChange: false,
     };
 
