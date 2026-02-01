@@ -11,6 +11,13 @@ export const ensureInitialUser = async (): Promise<void> => {
   });
 
   if (existing) {
+    if (existing.role !== "Developer") {
+      await prisma.user.update({
+        where: { email },
+        data: { role: "Developer" },
+      });
+      console.log("Updated initial user role to Developer:", INITIAL_EMAIL);
+    }
     return;
   }
 
