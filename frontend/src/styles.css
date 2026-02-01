@@ -1444,6 +1444,10 @@ button:disabled {
   color: #f05a5a;
 }
 
+.fleet-card-status.service {
+  color: #e6a23c;
+}
+
 .fleet-toggle-btn {
   border: 1px solid var(--border-default);
   background: var(--bg-elevated);

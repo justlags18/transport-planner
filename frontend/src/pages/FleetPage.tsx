@@ -8,7 +8,7 @@ type LorryRow = {
   capacityPallets: number;
   usedPallets: number;
   assignments: { id: string }[];
-  status?: "on" | "off";
+  status?: "on" | "off" | "service";
 };
 
 const SCHEDULE_TYPES = ["off_road", "service"] as const;
@@ -54,7 +54,7 @@ export const FleetPage = () => {
   const [lorries, setLorries] = useState<LorryRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [statusById, setStatusById] = useState<Record<string, "on" | "off">>({});
+  const [statusById, setStatusById] = useState<Record<string, "on" | "off" | "service">>({});
 
   const [scheduleEntries, setScheduleEntries] = useState<FleetScheduleEntry[]>([]);
   const [scheduleLoading, setScheduleLoading] = useState(false);
@@ -236,12 +236,15 @@ export const FleetPage = () => {
                 }
               };
 
+              const statusLabel = status === "on" ? "ON ROAD" : status === "service" ? "SERVICE" : "OFF ROAD";
+              const statusMeta = status === "on" ? "Available" : status === "service" ? "Service" : "Unavailable";
+
               return (
                 <article key={lorry.id} className="fleet-card">
                   <div className="fleet-card-header">
                     <h3 className="fleet-card-title">{lorry.name}</h3>
                     <span className={`fleet-card-status ${status}`}>
-                      {status === "on" ? "ON ROAD" : "OFF ROAD"}
+                      {statusLabel}
                     </span>
                   </div>
                   <div className="fleet-card-status-row">
@@ -260,7 +263,7 @@ export const FleetPage = () => {
                   </div>
                   <div className="fleet-card-meta">
                     <span>Status</span>
-                    <span>{status === "on" ? "Available" : "Unavailable"}</span>
+                    <span>{statusMeta}</span>
                   </div>
                   <div className="fleet-card-meta">
                     <span>Capacity</span>
