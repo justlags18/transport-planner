@@ -28,6 +28,24 @@ const parseNumber = (value: string | number | null | undefined): number | null =
   return Number.isFinite(num) ? num : null;
 };
 
+/**
+ * Parse pieces from packages field, handling formats like "0 of 2" (use 2), "2 X SKID" (use 2).
+ * Returns the total piece count.
+ */
+function parsePieces(value: string | number | null | undefined): number | null {
+  if (value == null) return null;
+  const s = typeof value === "number" ? String(value) : String(value).trim();
+  if (!s) return null;
+  // Handle "X of Y" (e.g. "0 of 2") -> use Y (total)
+  const ofMatch = s.match(/\d+\s+of\s+(\d+)/i);
+  if (ofMatch) return Number(ofMatch[1]);
+  // Handle "X x Y" or "X X Y" (e.g. "2 X SKID") -> use X
+  const xMatch = s.match(/^(\d+)\s*[xX×]\s+/);
+  if (xMatch) return Number(xMatch[1]);
+  // Default: parse first number
+  return parseNumber(s);
+}
+
 function str(row: Record<string, unknown>, key: string): string {
   const v = row[key];
   if (v == null) return "";
@@ -79,15 +97,16 @@ export function computePalletsFromRow(row: Record<string, unknown>): number | nu
     str(row, "packages") || str(row, "package") || str(row, "pkgs") || str(row, "packages qty")
     || str(row, "pc") || str(row, "pcs") || str(row, "no. of packages") || str(row, "no of packages")
     || str(row, "number of packages") || str(row, "quantity") || str(row, "qty") || str(row, "pieces")
-    || firstMatch(row, [/package|pkgs?|pcs?|qty|piece|quantity|no\.?\s*of/]);
-  if (!packages) packages = scanAllKeysForNumber(row, ["pc", "pack", "pkg", "qty", "piece", "quantity", "no. of", "no of"]);
+    || str(row, "unit details") || str(row, "units")
+    || firstMatch(row, [/package|pkgs?|pcs?|qty|piece|quantity|no\.?\s*of|unit/]);
+  if (!packages) packages = scanAllKeysForNumber(row, ["pc", "pack", "pkg", "qty", "piece", "quantity", "no. of", "no of", "unit"]);
   let weightRaw =
     str(row, "weight") || str(row, "weight kg") || str(row, "weight (kg)") || str(row, "weight (kgs)")
     || str(row, "weight kgs") || str(row, "total weight") || str(row, "gross weight") || str(row, "net weight")
     || str(row, "actual weight") || str(row, "kgs")
     || firstMatch(row, [/weight|kgs?|gross|net\s*weight|actual/]);
   if (!weightRaw) weightRaw = scanAllKeysForNumber(row, ["weight", "kg", "gross", "net weight", "actual weight"]);
-  const pieces = packages ? parseNumber(packages) : null;
+  const pieces = packages ? parsePieces(packages) : null;
   const weightKg = weightRaw ? parseNumber(weightRaw) : null;
 
   const isFlowers =
