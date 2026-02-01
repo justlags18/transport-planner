@@ -80,28 +80,45 @@ export const ConsignmentsPage = () => {
     };
   }, [activeOnly, search, dateFilter]);
 
-  const sorted = useMemo(
-    () =>
-      [...items].sort((a, b) => {
-        const toEtaMillis = (value: string | null) => {
-          if (!value) return Number.POSITIVE_INFINITY;
-          const parsed = new Date(value).getTime();
-          if (!Number.isNaN(parsed)) return parsed;
-          const timeMatch = value.match(/\b([01]?\d|2[0-3])[: ]([0-5]\d)\b/);
-          if (timeMatch) {
-            const now = new Date();
-            const hh = Number(timeMatch[1]);
-            const mm = Number(timeMatch[2]);
-            const when = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hh, mm, 0, 0);
-            return when.getTime();
-          }
-          return Number.POSITIVE_INFINITY;
-        };
+  const toEtaMillis = (value: string | null) => {
+    if (!value) return Number.POSITIVE_INFINITY;
+    const parsed = new Date(value).getTime();
+    if (!Number.isNaN(parsed)) return parsed;
+    const timeMatch = value.match(/\b([01]?\d|2[0-3])[: ]([0-5]\d)\b/);
+    if (timeMatch) {
+      const now = new Date();
+      const hh = Number(timeMatch[1]);
+      const mm = Number(timeMatch[2]);
+      const when = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hh, mm, 0, 0);
+      return when.getTime();
+    }
+    return Number.POSITIVE_INFINITY;
+  };
 
-        return toEtaMillis(a.etaIso) - toEtaMillis(b.etaIso);
-      }),
-    [items],
-  );
+  const grouped = useMemo(() => {
+    const map = new Map<string, { customer: string; mawb: string; items: ConsignmentDTO[] }>();
+    for (const item of items) {
+      const customer = item.customerNameRaw ?? "Unknown";
+      const mawb = item.mawbRaw ?? "Unknown";
+      const key = `${customer}__${mawb}`;
+      const entry = map.get(key);
+      if (entry) {
+        entry.items.push(item);
+      } else {
+        map.set(key, { customer, mawb, items: [item] });
+      }
+    }
+    const groups = Array.from(map.values()).map((group) => {
+      group.items.sort((a, b) => toEtaMillis(a.etaIso) - toEtaMillis(b.etaIso));
+      return group;
+    });
+    groups.sort((a, b) => {
+      const aTime = toEtaMillis(a.items[0]?.etaIso ?? null);
+      const bTime = toEtaMillis(b.items[0]?.etaIso ?? null);
+      return aTime - bTime;
+    });
+    return groups;
+  }, [items]);
 
   const massCheckCutoff = useMemo(getLastMassCheck, []);
 
@@ -112,18 +129,18 @@ export const ConsignmentsPage = () => {
         <div className="consignments-summary">
           <div className="consignments-kpi">
             <span className="consignments-kpi-label">Total</span>
-            <span className="consignments-kpi-value">{sorted.length}</span>
+            <span className="consignments-kpi-value">{items.length}</span>
           </div>
           <div className="consignments-kpi">
             <span className="consignments-kpi-label">Active</span>
             <span className="consignments-kpi-value">
-              {sorted.filter((item) => !item.archivedAt).length}
+              {items.filter((item) => !item.archivedAt).length}
             </span>
           </div>
           <div className="consignments-kpi">
             <span className="consignments-kpi-label">Last Seen</span>
             <span className="consignments-kpi-value">
-              {sorted.length ? formatDateTime(sorted[0].lastSeenAt) : "-"}
+              {items.length ? formatDateTime(items[0].lastSeenAt) : "-"}
             </span>
           </div>
         </div>
@@ -168,41 +185,61 @@ export const ConsignmentsPage = () => {
 
         {loading ? (
           <p className="management-loading">Loading consignments…</p>
-        ) : sorted.length === 0 ? (
+        ) : grouped.length === 0 ? (
           <p className="management-loading">No consignments found.</p>
         ) : (
-          <div className="management-table-wrap">
-            <table className="management-table consignments-table">
-              <thead>
-                <tr>
-                  <th>PML Ref</th>
-                  <th>Customer</th>
-                  <th>ETA &amp; Time</th>
-                  <th>MAWB</th>
-                  <th>Observation</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sorted.map((item) => {
-                  const createdAt = new Date(item.createdAt);
-                  const isNew = !Number.isNaN(createdAt.getTime()) && createdAt > massCheckCutoff;
-                  return (
-                  <tr key={item.id}>
-                    <td>
-                      <div className="consignments-ref">
-                        <span>{item.id}</span>
-                        {isNew ? <span className="consignments-new">New</span> : null}
-                      </div>
-                    </td>
-                    <td>{item.customerNameRaw ?? "-"}</td>
-                    <td>{formatDateTime(item.etaIso)}</td>
-                    <td>{item.mawbRaw ?? "-"}</td>
-                    <td>{item.observationRaw ?? "-"}</td>
-                  </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+          <div className="consignments-groups">
+            {grouped.map((group) => {
+              const groupEta = formatDateTime(group.items[0]?.etaIso ?? null);
+              return (
+                <details
+                  key={`${group.customer}-${group.mawb}`}
+                  className="consignments-group"
+                  open={group.items.length === 1}
+                >
+                  <summary className="consignments-group-summary">
+                    <div className="consignments-group-main">
+                      <span className="consignments-group-customer">{group.customer}</span>
+                      <span className="consignments-group-mawb">MAWB: {group.mawb}</span>
+                    </div>
+                    <div className="consignments-group-meta">
+                      <span>{group.items.length} jobs</span>
+                      <span>ETA {groupEta}</span>
+                    </div>
+                  </summary>
+                  <div className="management-table-wrap">
+                    <table className="management-table consignments-table">
+                      <thead>
+                        <tr>
+                          <th>PML Ref</th>
+                          <th>ETA &amp; Time</th>
+                          <th>Observation</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {group.items.map((item) => {
+                          const createdAt = new Date(item.createdAt);
+                          const isNew =
+                            !Number.isNaN(createdAt.getTime()) && createdAt > massCheckCutoff;
+                          return (
+                            <tr key={item.id}>
+                              <td>
+                                <div className="consignments-ref">
+                                  <span>{item.id}</span>
+                                  {isNew ? <span className="consignments-new">New</span> : null}
+                                </div>
+                              </td>
+                              <td>{formatDateTime(item.etaIso)}</td>
+                              <td>{item.observationRaw ?? "-"}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </details>
+              );
+            })}
           </div>
         )}
       </div>
