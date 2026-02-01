@@ -251,8 +251,7 @@ const AssignmentRow = ({ assignment, lorryId, showMissingPalletsChip = false, on
           ⋮⋮
         </button>
         <div>
-          <div className="card-title">{deliveryLocation}</div>
-          <div className="card-subtitle lorries-board-assignment-client-line">
+          <div className="card-title lorries-board-assignment-client-line">
             <span className="lorries-board-assignment-customer">{client}</span>
             {` · Job ${jobId}${awb !== "—" ? ` · AWB ${awb}` : ""}`}
           </div>
@@ -280,6 +279,9 @@ const AssignmentRow = ({ assignment, lorryId, showMissingPalletsChip = false, on
       <div className="card-meta">
         <span>ETA: {assignment.consignment.etaIso ?? "TBC"}</span>
         <span>Pallets: {assignment.effectivePallets ?? "—"}</span>
+      </div>
+      <div className="lorries-board-assignment-location">
+        {deliveryLocation}
       </div>
     </article>
   );

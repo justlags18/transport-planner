@@ -1496,6 +1496,15 @@ button:disabled {
   font-weight: 600;
 }
 
+.lorries-board-assignment-location {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #fff;
+}
+
 .lorries-board-assignment-remove {
   flex-shrink: 0;
   margin-left: auto;
