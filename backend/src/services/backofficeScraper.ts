@@ -10,6 +10,7 @@ type BackofficeRow = Record<string, string>;
 const LOGIN_URL = process.env.PML_BACKOFFICE_LOGIN_URL
   ?? "https://www.pmlconsignment.co.uk/backoffice/content/manager/index.asp";
 const DATA_URL = process.env.PML_BACKOFFICE_DATA_URL ?? LOGIN_URL;
+const DATA_URLS = process.env.PML_BACKOFFICE_DATA_URLS ?? "";
 const USERNAME = process.env.PML_BACKOFFICE_USER ?? "";
 const PASSWORD = process.env.PML_BACKOFFICE_PASS ?? "";
 
@@ -154,15 +155,28 @@ export const fetchAndUpsertConsignments = async (): Promise<number> => {
     await performLogin(client, initialHtml);
   }
 
-  const dataRes = await client.get(DATA_URL);
-  const html = dataRes.data as string;
-  const $ = cheerio.load(html);
-  const table = pickTable($);
-  if (!table) {
-    throw new Error("Could not find consignments table");
+  const urls = DATA_URLS
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+  if (!urls.length) {
+    urls.push(DATA_URL);
   }
 
-  const rows = extractRows(table, $);
+  const rows: BackofficeRow[] = [];
+  for (const url of urls) {
+    const dataRes = await client.get(url);
+    const html = dataRes.data as string;
+    const $ = cheerio.load(html);
+    const table = pickTable($);
+    if (!table) {
+      continue;
+    }
+    rows.push(...extractRows(table, $));
+  }
+  if (!rows.length) {
+    throw new Error("Could not find consignments table");
+  }
   let upserted = 0;
   const now = new Date();
 
