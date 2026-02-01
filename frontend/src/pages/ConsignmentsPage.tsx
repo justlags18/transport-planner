@@ -98,6 +98,9 @@ export const ConsignmentsPage = () => {
   const grouped = useMemo(() => {
     const map = new Map<string, { customer: string; mawb: string; items: ConsignmentDTO[] }>();
     for (const item of items) {
+      if (item.id.toLowerCase().includes("export")) {
+        continue;
+      }
       const customer = item.customerNameRaw ?? "Unknown";
       const mawb = item.mawbRaw ?? "Unknown";
       const key = `${customer}__${mawb}`;
