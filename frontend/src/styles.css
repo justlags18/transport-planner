@@ -1413,6 +1413,34 @@ button:disabled {
   color: var(--text-muted);
 }
 
+.lorries-board-assignment-remove {
+  flex-shrink: 0;
+  margin-left: auto;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  line-height: 1;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
+}
+.lorries-board-assignment-remove:hover {
+  color: var(--danger, #b91c1c);
+  background: rgba(185, 28, 28, 0.08);
+  border-color: rgba(185, 28, 28, 0.4);
+}
+.lorries-board-assignment-remove:focus-visible {
+  outline: 2px solid var(--focus-ring, #3b82f6);
+  outline-offset: 2px;
+}
+
 @media (max-width: 900px) {
   .deliveries-columns {
     grid-template-columns: 1fr;

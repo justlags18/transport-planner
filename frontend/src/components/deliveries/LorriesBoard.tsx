@@ -7,13 +7,15 @@ type LorriesBoardProps = {
   activeDragData?: ActiveDragData;
   /** Pallets to count when a job has missing/zero pallets (for capacity preview). */
   missingPalletsFallback?: number;
+  /** Called when a job is removed from a lorry (returns to unassigned). */
+  onUnassign?: (consignmentId: string) => void;
 };
 
 /**
  * Renders lorries as vertical columns in a horizontally scrollable board.
  * Each column shows truck reg, status badge, capacity bar, and a drop zone for jobs.
  */
-const LorriesBoardInner = ({ lorries, activeDragData = null, missingPalletsFallback = 1 }: LorriesBoardProps) => {
+const LorriesBoardInner = ({ lorries, activeDragData = null, missingPalletsFallback = 1, onUnassign }: LorriesBoardProps) => {
   if (lorries.length === 0) {
     return (
       <div className="lorries-board lorries-board--empty">
@@ -31,6 +33,7 @@ const LorriesBoardInner = ({ lorries, activeDragData = null, missingPalletsFallb
             lorry={lorry}
             activeDragData={activeDragData}
             missingPalletsFallback={missingPalletsFallback}
+            onUnassign={onUnassign}
           />
         ))}
       </div>

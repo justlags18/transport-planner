@@ -20,11 +20,13 @@ type LorryColumnProps = {
   activeDragData?: ActiveDragData;
   /** Pallets to count when dragged job has missing/zero pallets (for preview and overflow check). */
   missingPalletsFallback?: number;
+  /** Called when a job is removed from this lorry (returns to unassigned). */
+  onUnassign?: (consignmentId: string) => void;
 };
 
 const PLACEHOLDER_SLOT_COUNT = 4;
 
-const LorryColumnInner = memo(({ lorry, activeDragData = null, missingPalletsFallback = 1 }: LorryColumnProps) => {
+const LorryColumnInner = memo(({ lorry, activeDragData = null, missingPalletsFallback = 1, onUnassign }: LorryColumnProps) => {
   const { setNodeRef, isOver } = useDroppable({
     id: `lorry:${lorry.id}`,
     data: {
@@ -119,7 +121,13 @@ const LorryColumnInner = memo(({ lorry, activeDragData = null, missingPalletsFal
           >
             <div className="lorries-board-column-list">
               {lorry.assignments.map((assignment) => (
-                <AssignmentRow key={assignment.id} assignment={assignment} lorryId={lorry.id} showMissingPalletsChip />
+                <AssignmentRow
+                  key={assignment.id}
+                  assignment={assignment}
+                  lorryId={lorry.id}
+                  showMissingPalletsChip
+                  onUnassign={onUnassign}
+                />
               ))}
             </div>
           </SortableContext>
@@ -138,6 +146,7 @@ type AssignmentRowProps = {
   assignment: AssignmentDTO;
   lorryId: string;
   showMissingPalletsChip?: boolean;
+  onUnassign?: (consignmentId: string) => void;
 };
 
 function awbDisplay(mawb: string | null | undefined, hawb: string | null | undefined): string {
@@ -146,7 +155,7 @@ function awbDisplay(mawb: string | null | undefined, hawb: string | null | undef
   return "—";
 }
 
-const AssignmentRow = ({ assignment, lorryId, showMissingPalletsChip = false }: AssignmentRowProps) => {
+const AssignmentRow = ({ assignment, lorryId, showMissingPalletsChip = false, onUnassign }: AssignmentRowProps) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: `assignment:${assignment.id}`,
     data: {
@@ -193,6 +202,20 @@ const AssignmentRow = ({ assignment, lorryId, showMissingPalletsChip = false }: 
           <span className="lorries-board-assignment-missing-chip" title="Missing or zero pallets – counted using fallback for capacity">
             Missing pallets
           </span>
+        )}
+        {onUnassign && (
+          <button
+            type="button"
+            className="lorries-board-assignment-remove"
+            aria-label="Remove job (return to unassigned)"
+            title="Remove from lorry"
+            onClick={(e) => {
+              e.stopPropagation();
+              onUnassign(assignment.consignmentId);
+            }}
+          >
+            ×
+          </button>
         )}
       </div>
       <div className="card-meta">

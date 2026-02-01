@@ -291,6 +291,31 @@ export const DeliveriesPage = () => {
     setActiveDragData(null);
   }, []);
 
+  const handleUnassign = useCallback(
+    async (consignmentId: string) => {
+      const prevLorries = lorries;
+      const lorryWithJob = prevLorries.find((l) => l.assignments.some((a) => a.consignmentId === consignmentId));
+      if (!lorryWithJob) return;
+      const pallets = lorryWithJob.assignments.find((a) => a.consignmentId === consignmentId)?.effectivePallets ?? 0;
+      setLorries((prev) =>
+        prev.map((l) => {
+          if (l.id !== lorryWithJob.id) return l;
+          const filtered = l.assignments.filter((a) => a.consignmentId !== consignmentId);
+          const usedNow = filtered.reduce((s, a) => s + a.effectivePallets, 0);
+          return { ...l, assignments: filtered, usedPallets: usedNow };
+        })
+      );
+      try {
+        await apiPost("/api/assignments/unassign", { consignmentId });
+        await refreshData();
+      } catch (err) {
+        setLorries(prevLorries);
+        setError(err instanceof Error ? err.message : "Failed to remove job");
+      }
+    },
+    [lorries, refreshData],
+  );
+
   const activeDragDataForBoard = useMemo(
     () =>
       activeDragData
@@ -365,7 +390,7 @@ export const DeliveriesPage = () => {
                 onToggleSelect={toggleSelection}
                 onSelectRange={setSelectionRange}
               />
-              <LorriesBoard lorries={lorries} activeDragData={activeDragDataForBoard} />
+              <LorriesBoard lorries={lorries} activeDragData={activeDragDataForBoard} onUnassign={handleUnassign} />
             </div>
             <DragOverlay dropAnimation={null}>
               {activeDragData?.type === "consignment" ? (
