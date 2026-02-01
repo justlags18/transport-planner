@@ -7,6 +7,7 @@ import type { AuthRequest } from "../middleware/auth";
 
 const ROLES = ["Clerk", "Planner", "Management", "Developer"] as const;
 const PROTECTED_EMAIL = "jamie@pml-ltd.com";
+const PROTECTED_EMAIL_NORM = PROTECTED_EMAIL.toLowerCase();
 
 function generateRandomPassword(length = 12): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
@@ -16,10 +17,10 @@ function generateRandomPassword(length = 12): string {
   return result;
 }
 
-function canSetRole(requestorRole: string, targetRole: string): boolean {
-  // Only Developers can create or assign Developer role
+function canSetRole(requestorRole: string, requestorEmail: string | undefined, targetRole: string): boolean {
+  // Only the primary developer account can assign Developer role
   if (targetRole === "Developer") {
-    return requestorRole === "Developer";
+    return requestorEmail?.toLowerCase() === PROTECTED_EMAIL_NORM;
   }
   // Management and Developer can set other roles
   return requestorRole === "Developer" || requestorRole === "Management";
@@ -68,7 +69,7 @@ usersRouter.post("/api/users", async (req: AuthRequest, res: Response) => {
     const emailNorm = email.trim().toLowerCase();
 
     // Check if requestor can set this role
-    if (!canSetRole(req.user?.role ?? "", role)) {
+    if (!canSetRole(req.user?.role ?? "", req.user?.email, role)) {
       res.status(403).json({ ok: false, error: "You cannot create users with Developer role" });
       return;
     }
@@ -151,7 +152,7 @@ usersRouter.patch("/api/users/:id/role", async (req: AuthRequest, res: Response)
     const { role } = parsed.data;
 
     // Check if requestor can set this role
-    if (!canSetRole(req.user?.role ?? "", role)) {
+    if (!canSetRole(req.user?.role ?? "", req.user?.email, role)) {
       res.status(403).json({ ok: false, error: "You cannot assign Developer role" });
       return;
     }
@@ -162,7 +163,7 @@ usersRouter.patch("/api/users/:id/role", async (req: AuthRequest, res: Response)
       return;
     }
 
-    if (user.email === PROTECTED_EMAIL && role !== "Developer") {
+    if (user.email.toLowerCase() === PROTECTED_EMAIL_NORM && role !== "Developer") {
       res.status(403).json({ ok: false, error: "Primary developer account role cannot be changed" });
       return;
     }
