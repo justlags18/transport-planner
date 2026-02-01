@@ -103,7 +103,7 @@ const extractRows = (
       const value =
         preferDataTime && dataTime
           ? dataTime.trim()
-          : (selectedTime ?? cellText || titleText.trim());
+          : (selectedTime ?? (cellText || titleText.trim()));
       record[key] = value;
     });
     rows.push(record);
