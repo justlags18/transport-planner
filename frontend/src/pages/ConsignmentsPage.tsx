@@ -98,6 +98,12 @@ export const ConsignmentsPage = () => {
     return Number.POSITIVE_INFINITY;
   };
 
+  const normalizeKey = (value: string | null) =>
+    (value ?? "")
+      .trim()
+      .replace(/\s+/g, " ")
+      .toUpperCase();
+
   const grouped = useMemo(() => {
     const map = new Map<string, { customer: string; mawb: string; items: ConsignmentDTO[] }>();
     for (const item of items) {
@@ -106,7 +112,7 @@ export const ConsignmentsPage = () => {
       }
       const customer = item.customerNameRaw ?? "Unknown";
       const mawb = item.mawbRaw ?? "Unknown";
-      const key = `${customer}__${mawb}`;
+      const key = `${normalizeKey(customer)}__${normalizeKey(mawb)}`;
       const entry = map.get(key);
       if (entry) {
         entry.items.push(item);
