@@ -128,6 +128,20 @@ export const ConsignmentsPage = () => {
 
   const massCheckCutoff = useMemo(getLastMassCheck, []);
 
+  const { expandableGroups, flatItems } = useMemo(() => {
+    const flat: ConsignmentDTO[] = [];
+    const expandable = grouped.filter((group) => {
+      const hasMultiple = group.items.length > 1;
+      const allHaveHawb = group.items.every((item) => item.hawbRaw && item.hawbRaw.trim());
+      if (hasMultiple && allHaveHawb) {
+        return true;
+      }
+      flat.push(...group.items);
+      return false;
+    });
+    return { expandableGroups: expandable, flatItems: flat };
+  }, [grouped]);
+
   return (
     <>
       <h2 className="dashboard-page-title">Consignments</h2>
@@ -195,13 +209,53 @@ export const ConsignmentsPage = () => {
           <p className="management-loading">No consignments found.</p>
         ) : (
           <div className="consignments-groups">
-            {grouped.map((group) => {
+            {flatItems.length > 0 ? (
+              <div className="management-table-wrap">
+                <table className="management-table consignments-table">
+                  <thead>
+                    <tr>
+                      <th>PML Ref</th>
+                      <th>Client</th>
+                      <th>AWB</th>
+                      <th>ETA &amp; Time</th>
+                      <th>Packages</th>
+                      <th>Observation</th>
+                      <th>Product Description</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {flatItems.map((item) => {
+                      const createdAt = new Date(item.createdAt);
+                      const isNew =
+                        !Number.isNaN(createdAt.getTime()) && createdAt > massCheckCutoff;
+                      return (
+                        <tr key={item.id}>
+                          <td>
+                            <div className="consignments-ref">
+                              <span>{item.id}</span>
+                              {isNew ? <span className="consignments-new">New</span> : null}
+                            </div>
+                          </td>
+                          <td>{item.customerNameRaw ?? "-"}</td>
+                          <td>{item.mawbRaw ?? "-"}</td>
+                          <td>{formatDateTime(item.etaIso)}</td>
+                          <td>{item.packagesRaw ?? "-"}</td>
+                          <td>{item.observationRaw ?? "-"}</td>
+                          <td>{item.productDescriptionRaw ?? "-"}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : null}
+            {expandableGroups.map((group) => {
               const groupEta = formatDateTime(group.items[0]?.etaIso ?? null);
               return (
                 <details
                   key={`${group.customer}-${group.mawb}`}
                   className="consignments-group"
-                  open={group.items.length === 1}
+                  open={false}
                 >
                   <summary className="consignments-group-summary">
                     <div className="consignments-group-main">
@@ -228,6 +282,7 @@ export const ConsignmentsPage = () => {
                           <th>HAWB</th>
                           <th>ETA &amp; Time</th>
                           <th>Packages</th>
+                          <th>Observation</th>
                           <th>Product Description</th>
                         </tr>
                       </thead>
@@ -236,10 +291,6 @@ export const ConsignmentsPage = () => {
                           const createdAt = new Date(item.createdAt);
                           const isNew =
                             !Number.isNaN(createdAt.getTime()) && createdAt > massCheckCutoff;
-                          const productDescription =
-                            item.productDescriptionRaw
-                            ?? item.observationRaw
-                            ?? "-";
                           return (
                             <tr key={item.id}>
                               <td>
@@ -253,7 +304,8 @@ export const ConsignmentsPage = () => {
                               <td>{item.hawbRaw ?? "-"}</td>
                               <td>{formatDateTime(item.etaIso)}</td>
                               <td>{item.packagesRaw ?? "-"}</td>
-                              <td>{productDescription}</td>
+                              <td>{item.observationRaw ?? "-"}</td>
+                              <td>{item.productDescriptionRaw ?? "-"}</td>
                             </tr>
                           );
                         })}
