@@ -47,22 +47,31 @@ const parseEtaIso = (dateStr: string, timeStr: string): string | null => {
   return null;
 };
 
+const readSelectValue = ($select: cheerio.Cheerio<any>): string => {
+  if (!$select.length) return "";
+  const selected = $select.find("option:selected").attr("value")
+    ?? $select.find("option[selected]").attr("value")
+    ?? "";
+  if (selected) return selected;
+  const attrValue = $select.attr("value") ?? "";
+  if (attrValue) return attrValue;
+  const firstOption = $select.find("option").first();
+  return firstOption.attr("value") ?? firstOption.text().trim();
+};
+
 const parseSelectTime = ($cell: cheerio.Cheerio<any>): string | null => {
-  const hourSelect = $cell.find("select[name='hours']");
-  const minuteSelect = $cell.find("select[name='minutes']");
-  const hour = hourSelect.find("option:selected").attr("value")
-    ?? hourSelect.find("option[selected]").attr("value")
-    ?? "";
-  let minute = minuteSelect.find("option:selected").attr("value")
-    ?? minuteSelect.find("option[selected]").attr("value")
-    ?? "";
+  const hourSelect = $cell.find("select[name='hours']").first();
+  const minuteSelect =
+    $cell.find("select[name='minutes']").first()
+    .add($cell.find("select[name='mins']").first())
+    .add($cell.find("select[name='minute']").first());
+
+  const hour = readSelectValue(hourSelect);
+  let minute = readSelectValue(minuteSelect);
 
   if (!minute) {
     const fallbackSelects = $cell.find("select[name='hours']");
-    const fallbackMinute = fallbackSelects.eq(1).find("option:selected").attr("value")
-      ?? fallbackSelects.eq(1).find("option[selected]").attr("value")
-      ?? "";
-    minute = fallbackMinute;
+    minute = readSelectValue(fallbackSelects.eq(1));
   }
 
   if (!hour && !minute) return null;
@@ -232,6 +241,14 @@ export const fetchAndUpsertConsignments = async (): Promise<number> => {
     const customer = row["client"] ?? "";
     const destination = row["airport"] ?? row["route"] ?? "";
     const observation = row["observation"] ?? row["observations"] ?? row["notes"] ?? "";
+    const mawb =
+      row["mawb"]
+      ?? row["mawb no"]
+      ?? row["mawb no."]
+      ?? row["awb"]
+      ?? row["awb no"]
+      ?? row["awb no."]
+      ?? "";
     const etaIso = parseEtaIso(
       row["consignment date"] ?? "",
       row["eta"] ?? "",
@@ -249,6 +266,7 @@ export const fetchAndUpsertConsignments = async (): Promise<number> => {
         destinationRaw: destination || null,
         destinationKey: destination ? normalizeDestination(destination) : null,
         observationRaw: observation || null,
+        mawbRaw: mawb || null,
         etaIso,
         status: status || null,
         palletsFromSite,
@@ -263,6 +281,7 @@ export const fetchAndUpsertConsignments = async (): Promise<number> => {
         destinationRaw: destination || null,
         destinationKey: destination ? normalizeDestination(destination) : null,
         observationRaw: observation || null,
+        mawbRaw: mawb || null,
         etaIso,
         status: status || null,
         palletsFromSite,

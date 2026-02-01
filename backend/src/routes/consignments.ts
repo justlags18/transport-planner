@@ -43,6 +43,7 @@ consignmentsRouter.get("/api/consignments", async (req, res, next) => {
         destinationRaw: true,
         destinationKey: true,
         observationRaw: true,
+        mawbRaw: true,
         etaIso: true,
         status: true,
         palletsFromSite: true,

@@ -6,6 +6,7 @@ type ConsignmentDTO = {
   customerNameRaw: string | null;
   destinationRaw: string | null;
   observationRaw: string | null;
+  mawbRaw: string | null;
   etaIso: string | null;
   status: string | null;
   palletsFromSite: number | null;
@@ -164,6 +165,7 @@ export const ConsignmentsPage = () => {
                   <th>PML Ref</th>
                   <th>Customer</th>
                   <th>ETA &amp; Time</th>
+                  <th>MAWB</th>
                   <th>Observation</th>
                 </tr>
               </thead>
@@ -181,6 +183,7 @@ export const ConsignmentsPage = () => {
                     </td>
                     <td>{item.customerNameRaw ?? "-"}</td>
                     <td>{formatDateTime(item.etaIso)}</td>
+                    <td>{item.mawbRaw ?? "-"}</td>
                     <td>{item.observationRaw ?? "-"}</td>
                   </tr>
                   );

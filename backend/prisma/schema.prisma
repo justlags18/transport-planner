@@ -14,6 +14,7 @@ model Consignment {
   destinationRaw String?
   destinationKey String?
   observationRaw String?
+  mawbRaw        String?
   etaIso         String?
   status         String?
   palletsFromSite Int?
