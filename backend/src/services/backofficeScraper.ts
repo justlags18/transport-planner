@@ -182,6 +182,7 @@ export const fetchAndUpsertConsignments = async (): Promise<number> => {
 
     const customer = row["client"] ?? "";
     const destination = row["airport"] ?? row["route"] ?? "";
+    const observation = row["observation"] ?? row["observations"] ?? row["notes"] ?? "";
     const etaIso = parseEtaIso(
       row["consignment date"] ?? "",
       row["eta"] ?? "",
@@ -198,6 +199,7 @@ export const fetchAndUpsertConsignments = async (): Promise<number> => {
         customerKey: customer ? normalizeCustomer(customer) : null,
         destinationRaw: destination || null,
         destinationKey: destination ? normalizeDestination(destination) : null,
+        observationRaw: observation || null,
         etaIso,
         status: status || null,
         palletsFromSite,
@@ -211,6 +213,7 @@ export const fetchAndUpsertConsignments = async (): Promise<number> => {
         customerKey: customer ? normalizeCustomer(customer) : null,
         destinationRaw: destination || null,
         destinationKey: destination ? normalizeDestination(destination) : null,
+        observationRaw: observation || null,
         etaIso,
         status: status || null,
         palletsFromSite,
