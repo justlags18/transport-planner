@@ -24,15 +24,7 @@ const parseNumber = (value: string): number | null => {
   return Number.isFinite(num) ? num : null;
 };
 
-const parseEtaIso = (dateStr: string, timeStr: string, deliveryStr: string): string | null => {
-  const delivery = deliveryStr.trim();
-  if (delivery && delivery.toLowerCase() !== "n/a") {
-    const asDate = new Date(delivery);
-    if (!Number.isNaN(asDate.getTime())) {
-      return asDate.toISOString();
-    }
-  }
-
+const parseEtaIso = (dateStr: string, timeStr: string): string | null => {
   const combined = `${dateStr} ${timeStr}`.trim();
   const dt = new Date(combined);
   if (!Number.isNaN(dt.getTime())) {
@@ -189,7 +181,6 @@ export const fetchAndUpsertConsignments = async (): Promise<number> => {
     const etaIso = parseEtaIso(
       row["consignment date"] ?? "",
       row["eta"] ?? "",
-      row["delivery date & eta"] ?? "",
     );
 
     const packages = row["packages"] ?? "";
