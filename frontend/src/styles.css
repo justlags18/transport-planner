@@ -1143,6 +1143,37 @@ button:disabled {
   text-align: right;
 }
 
+.consignments-group-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: #7fdc9b;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 0.85rem;
+  box-shadow: 0 6px 14px rgba(32, 156, 90, 0.25);
+}
+
+.consignments-group-chevron {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  opacity: 0;
+  transform: translateY(-2px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.consignments-group[open] .consignments-group-chevron {
+  transform: rotate(180deg);
+}
+
+.consignments-group:hover .consignments-group-chevron {
+  opacity: 1;
+}
+
 .consignments-ref {
   display: inline-flex;
   align-items: center;

@@ -206,9 +206,14 @@ export const ConsignmentsPage = () => {
                       <span className="consignments-group-mawb">MAWB: {group.mawb}</span>
                     </div>
                     <div className="consignments-group-meta">
-                      <span>{group.items.length} jobs</span>
+                      <span className="consignments-group-count">
+                        {group.items.length}
+                      </span>
                       <span>ETA {groupEta}</span>
                     </div>
+                    {group.items.length > 1 ? (
+                      <span className="consignments-group-chevron" aria-hidden="true">▼</span>
+                    ) : null}
                   </summary>
                   <div className="management-table-wrap">
                     <table className="management-table consignments-table">
