@@ -29,12 +29,18 @@ export const getEffectivePallets = async (consignmentId: string): Promise<number
     return consignment.palletsFromSite;
   }
 
-  // Recompute from stored backoffice row when pallets missing (e.g. scraped before rules or different columns)
+  // Recompute from stored backoffice row when pallets missing; persist so DB has it for next time
   if (consignment.rawJson) {
     try {
-      const row = JSON.parse(consignment.rawJson) as Record<string, string>;
+      const row = JSON.parse(consignment.rawJson) as Record<string, unknown>;
       const computed = computePalletsFromRow(row);
-      if (computed != null && computed > 0) return computed;
+      if (computed != null && computed > 0) {
+        await prisma.consignment.update({
+          where: { id: consignmentId },
+          data: { palletsFromSite: computed },
+        });
+        return computed;
+      }
     } catch {
       // ignore parse errors
     }

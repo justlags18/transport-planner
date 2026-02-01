@@ -58,6 +58,8 @@ lorriesRouter.get("/api/lorries", async (_req, res, next) => {
       },
     });
 
+    const persistPallets: { consignmentId: string; palletsFromSite: number }[] = [];
+
     const items = lorries.map((lorry) => {
       const effectiveStatus = statusByLorryId.get(lorry.id) ?? lorry.status ?? "on";
       const assignments = lorry.assignments.map((assignment) => {
@@ -66,9 +68,12 @@ lorriesRouter.get("/api/lorries", async (_req, res, next) => {
           consignment.palletOverride?.pallets ?? consignment.palletsFromSite ?? 0;
         if (effectivePallets === 0 && consignment.rawJson) {
           try {
-            const row = JSON.parse(consignment.rawJson) as Record<string, string>;
+            const row = JSON.parse(consignment.rawJson) as Record<string, unknown>;
             const computed = computePalletsFromRow(row);
-            if (computed != null && computed > 0) effectivePallets = computed;
+            if (computed != null && computed > 0) {
+              effectivePallets = computed;
+              persistPallets.push({ consignmentId: consignment.id, palletsFromSite: computed });
+            }
           } catch {
             // ignore
           }
@@ -93,6 +98,18 @@ lorriesRouter.get("/api/lorries", async (_req, res, next) => {
         usedPallets,
       };
     });
+
+    // Persist computed pallets so future reads see value from DB
+    if (persistPallets.length > 0) {
+      await Promise.all(
+        persistPallets.map(({ consignmentId, palletsFromSite }) =>
+          prisma.consignment.update({
+            where: { id: consignmentId },
+            data: { palletsFromSite },
+          }),
+        ),
+      );
+    }
 
     res.json(items);
   } catch (err) {

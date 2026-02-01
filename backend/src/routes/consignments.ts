@@ -73,21 +73,34 @@ consignmentsRouter.get("/api/consignments", async (req, res, next) => {
       },
     });
 
-    // When palletsFromSite is missing, recompute from stored backoffice row so UI gets a value
+    // When palletsFromSite is missing, recompute from stored backoffice row and persist so DB is updated
+    const updates: { id: string; palletsFromSite: number }[] = [];
     const itemsWithComputedPallets: ConsignmentDTO[] = items.map((item) => {
       const { rawJson, ...rest } = item;
       let palletsFromSite = rest.palletsFromSite;
       if ((palletsFromSite == null || palletsFromSite === 0) && rawJson) {
         try {
-          const row = JSON.parse(rawJson) as Record<string, string>;
+          const row = JSON.parse(rawJson) as Record<string, unknown>;
           const computed = computePalletsFromRow(row);
-          if (computed != null) palletsFromSite = computed;
+          if (computed != null) {
+            palletsFromSite = computed;
+            updates.push({ id: item.id, palletsFromSite: computed });
+          }
         } catch {
           // ignore
         }
       }
       return { ...rest, palletsFromSite };
     });
+
+    // Persist computed pallets so future reads (and other APIs) see the value from DB
+    if (updates.length > 0) {
+      await Promise.all(
+        updates.map(({ id, palletsFromSite }) =>
+          prisma.consignment.update({ where: { id }, data: { palletsFromSite } }),
+        ),
+      );
+    }
 
     res.json({ items: itemsWithComputedPallets });
   } catch (err) {
