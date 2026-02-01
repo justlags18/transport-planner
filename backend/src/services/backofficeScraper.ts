@@ -65,7 +65,14 @@ const extractRows = (
     const record: BackofficeRow = {};
     cells.each((idx: number, cell: any) => {
       const key = headers[idx] ?? `col_${idx}`;
-      const value = $(cell).text().replace(/\s+/g, " ").trim();
+      const cellText = $(cell).text().replace(/\s+/g, " ").trim();
+      const titleText =
+        $(cell).attr("title")
+        ?? $(cell).attr("data-title")
+        ?? $(cell).attr("aria-label")
+        ?? $(cell).find("[title]").attr("title")
+        ?? "";
+      const value = cellText || titleText.trim();
       record[key] = value;
     });
     rows.push(record);
