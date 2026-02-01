@@ -65,8 +65,6 @@ type DeliveryLocationRow = {
   updatedAt?: string;
 };
 
-type AvailableDestination = { destinationKey: string; displayName: string };
-type AvailableDestinationsResponse = { ok: boolean; destinations: AvailableDestination[] };
 type ListDeliveryLocationsResponse = { ok: boolean; locations: DeliveryLocationRow[] };
 type CreateDeliveryLocationResponse = { ok: boolean; location: DeliveryLocationRow };
 type UpdateDeliveryLocationResponse = { ok: boolean; location: DeliveryLocationRow };
@@ -137,9 +135,8 @@ export const ManagementPage = () => {
   // Delivery Locations state
   const [locations, setLocations] = useState<DeliveryLocationRow[]>([]);
   const [locationsLoading, setLocationsLoading] = useState(false);
-  const [availableDestinations, setAvailableDestinations] = useState<AvailableDestination[]>([]);
-  const [availableDestinationsLoading, setAvailableDestinationsLoading] = useState(false);
-  const [selectedDestinationKey, setSelectedDestinationKey] = useState("");
+  const [locationDisplayName, setLocationDisplayName] = useState("");
+  const [locationDestinationKey, setLocationDestinationKey] = useState("");
   const [locationNotes, setLocationNotes] = useState("");
   const [addingLocation, setAddingLocation] = useState(false);
   const [editingLocationId, setEditingLocationId] = useState<string | null>(null);
@@ -241,26 +238,6 @@ export const ManagementPage = () => {
     }
   }, []);
 
-  const loadAvailableDestinations = useCallback(async () => {
-    setAvailableDestinationsLoading(true);
-    setError("");
-    try {
-      const res = await apiGet<AvailableDestinationsResponse>("/api/delivery-locations/available-destinations");
-      if (res.ok && res.destinations) {
-        setAvailableDestinations(res.destinations);
-        setSelectedDestinationKey((prev) => {
-          if (!prev) return "";
-          const stillThere = res.destinations.some((d) => d.destinationKey === prev);
-          return stillThere ? prev : "";
-        });
-      }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load destination list");
-    } finally {
-      setAvailableDestinationsLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
     if (activeTab === "users") loadUsers();
   }, [activeTab, loadUsers]);
@@ -278,11 +255,8 @@ export const ManagementPage = () => {
   }, [activeTab, loadCustomerPrefs, loadAvailableCustomers, loadDeliveryLocations]);
 
   useEffect(() => {
-    if (activeTab === "delivery-locations") {
-      loadDeliveryLocations();
-      loadAvailableDestinations();
-    }
-  }, [activeTab, loadDeliveryLocations, loadAvailableDestinations]);
+    if (activeTab === "delivery-locations") loadDeliveryLocations();
+  }, [activeTab, loadDeliveryLocations]);
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -521,24 +495,24 @@ export const ManagementPage = () => {
 
   const handleAddLocation = async (e: React.FormEvent) => {
     e.preventDefault();
-    const dest = availableDestinations.find((d) => d.destinationKey === selectedDestinationKey);
-    if (!dest) {
-      setError("Please select a destination from the list.");
+    const displayName = locationDisplayName.trim();
+    if (!displayName) {
+      setError("Display name is required.");
       return;
     }
     setError("");
     setAddingLocation(true);
     try {
       const res = await apiPost<CreateDeliveryLocationResponse>("/api/delivery-locations", {
-        displayName: dest.displayName,
-        destinationKey: dest.destinationKey,
+        displayName,
+        destinationKey: locationDestinationKey.trim() || undefined,
         notes: locationNotes.trim() || undefined,
       });
       if (res.ok && res.location) {
         setLocations((prev) => [...prev, res.location!].sort((a, b) => a.displayName.localeCompare(b.displayName)));
-        setSelectedDestinationKey("");
+        setLocationDisplayName("");
+        setLocationDestinationKey("");
         setLocationNotes("");
-        loadAvailableDestinations();
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to add delivery location");
@@ -580,7 +554,6 @@ export const ManagementPage = () => {
     try {
       await apiDelete(`/api/delivery-locations/${id}`);
       setLocations((prev) => prev.filter((l) => l.id !== id));
-      loadAvailableDestinations();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to delete delivery location");
     } finally {
@@ -1165,55 +1138,51 @@ export const ManagementPage = () => {
       {activeTab === "delivery-locations" && (
         <>
           <p className="management-intro">
-            Manage delivery locations pulled from consignments (scraper). Use these with Customer Pref to mark which locations each customer delivers to for easier organisation.
+            Create delivery locations manually. Use the dropdown in Customer Pref to assign which locations each customer delivers to for easier organisation.
           </p>
 
           <section className="management-section">
             <h3 className="management-section-title">Add delivery location</h3>
-            {availableDestinationsLoading ? (
-              <p className="management-loading">Loading destination list…</p>
-            ) : (
-              <form className="management-create-form" onSubmit={handleAddLocation}>
-                <label>
-                  Destination (from consignments)
-                  <select
-                    value={selectedDestinationKey}
-                    onChange={(e) => setSelectedDestinationKey(e.target.value)}
-                    className="management-select"
-                    required
-                  >
-                    <option value="">— Select a destination —</option>
-                    {availableDestinations.map((d) => (
-                      <option key={d.destinationKey} value={d.destinationKey}>
-                        {d.displayName}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                {availableDestinations.length === 0 && !availableDestinationsLoading && (
-                  <p className="management-intro" style={{ marginTop: "0.5rem" }}>
-                    No destinations from consignments yet. Run the scraper or add consignments; new destinations will appear here.
-                  </p>
-                )}
-                <label>
-                  Notes (optional)
-                  <input
-                    type="text"
-                    value={locationNotes}
-                    onChange={(e) => setLocationNotes(e.target.value)}
-                    placeholder="e.g. Gate 2, loading bay"
-                    className="management-input"
-                  />
-                </label>
-                <button
-                  type="submit"
-                  className="management-btn management-btn-primary"
-                  disabled={addingLocation || availableDestinations.length === 0}
-                >
-                  {addingLocation ? "Adding…" : "Add"}
-                </button>
-              </form>
-            )}
+            <form className="management-create-form" onSubmit={handleAddLocation}>
+              <label>
+                Display name
+                <input
+                  type="text"
+                  value={locationDisplayName}
+                  onChange={(e) => setLocationDisplayName(e.target.value)}
+                  placeholder="e.g. Kent Depot, London Hub"
+                  required
+                  className="management-input"
+                />
+              </label>
+              <label>
+                Destination key (optional)
+                <input
+                  type="text"
+                  value={locationDestinationKey}
+                  onChange={(e) => setLocationDestinationKey(e.target.value)}
+                  placeholder="e.g. kent-depot"
+                  className="management-input"
+                />
+              </label>
+              <label>
+                Notes (optional)
+                <input
+                  type="text"
+                  value={locationNotes}
+                  onChange={(e) => setLocationNotes(e.target.value)}
+                  placeholder="e.g. Gate 2, loading bay"
+                  className="management-input"
+                />
+              </label>
+              <button
+                type="submit"
+                className="management-btn management-btn-primary"
+                disabled={addingLocation}
+              >
+                {addingLocation ? "Adding…" : "Add"}
+              </button>
+            </form>
           </section>
 
           <section className="management-section">

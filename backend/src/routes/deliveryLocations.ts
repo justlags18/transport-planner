@@ -29,35 +29,6 @@ deliveryLocationsRouter.get("/api/delivery-locations", async (_req: AuthRequest,
   }
 });
 
-/** Unique destinations from consignments (scraper) that are not yet in DeliveryLocation. One per destination; once selected they drop out. */
-deliveryLocationsRouter.get("/api/delivery-locations/available-destinations", async (_req: AuthRequest, res: Response) => {
-  try {
-    const rows = await prisma.consignment.findMany({
-      where: { destinationKey: { not: null } },
-      select: { destinationKey: true, destinationRaw: true },
-    });
-    const byKey = new Map<string, string>();
-    for (const r of rows) {
-      if (r.destinationKey && !byKey.has(r.destinationKey)) {
-        byKey.set(r.destinationKey, r.destinationRaw ?? r.destinationKey);
-      }
-    }
-    const usedKeys = await prisma.deliveryLocation.findMany({
-      where: { destinationKey: { not: null } },
-      select: { destinationKey: true },
-    });
-    const usedSet = new Set(usedKeys.map((l) => l.destinationKey).filter(Boolean) as string[]);
-    const destinations = Array.from(byKey.entries())
-      .filter(([key]) => !usedSet.has(key))
-      .map(([destinationKey, displayName]) => ({ destinationKey, displayName }))
-      .sort((a, b) => a.displayName.localeCompare(b.displayName, undefined, { sensitivity: "base" }));
-    res.json({ ok: true, destinations });
-  } catch (err) {
-    console.error("Available destinations error:", err);
-    res.status(500).json({ ok: false, error: "Failed to load available destinations" });
-  }
-});
-
 deliveryLocationsRouter.post("/api/delivery-locations", async (req: AuthRequest, res: Response) => {
   try {
     const parsed = createDeliveryLocationSchema.safeParse(req.body);
