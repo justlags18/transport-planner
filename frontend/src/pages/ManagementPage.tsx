@@ -452,17 +452,6 @@ export const ManagementPage = () => {
     setEditPrefLocationIds(p.deliveryLocationIds ?? []);
   };
 
-  const handleUpdatePref = async () => {
-    if (!editingPrefId) return;
-    setError("");
-    try {
-      const res = await apiPatch<UpdateCustomerPrefResponse>(`/api/customer-prefs/${editingPrefId}`, {
-        displayName: editPrefDisplayName.trim(),
-        customerKey: editPrefCustomerKey.trim() || null,
-        deliveryType: editPrefDeliveryType,
-        notes: editPrefNotes.trim() || null,
-        deliveryLocationIds: editPrefLocationIds,
-      });
   const toggleAddPrefLocation = (locationId: string) => {
     setAddPrefLocationIds((prev) =>
       prev.includes(locationId) ? prev.filter((id) => id !== locationId) : [...prev, locationId]
