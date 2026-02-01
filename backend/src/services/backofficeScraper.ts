@@ -406,8 +406,46 @@ export const fetchAndUpsertConsignments = async (): Promise<number> => {
       ?? row["package"]
       ?? row["pkgs"]
       ?? row["packages qty"]
+      ?? row["pc"]
+      ?? row["pcs"]
       ?? "";
-    const palletsFromSite = packages ? parseNumber(packages) : null;
+    const weightRaw =
+      row["weight"]
+      ?? row["weight kg"]
+      ?? row["weight (kg)"]
+      ?? row["total weight"]
+      ?? row["weight kgs"]
+      ?? row["gross weight"]
+      ?? "";
+    const pieces = packages ? parseNumber(packages) : null;
+    const weightKg = weightRaw ? parseNumber(weightRaw) : null;
+
+    // Flowers rule: product description says "flowers" → pallets = PCs ÷ 24 (always round up)
+    const isFlowers =
+      productDescription.trim().toLowerCase().includes("flowers") &&
+      pieces != null &&
+      pieces > 0;
+
+    // Weight-based pallet rules (ULDs/PCs): PMC (>1500 kg/piece) = 6 pallets each; AKE (650–1500 kg/piece) = 3 pallets each
+    const weightPerPiece =
+      pieces != null && pieces > 0 && weightKg != null && weightKg > 0
+        ? weightKg / pieces
+        : null;
+    const isPmc = weightPerPiece != null && weightPerPiece > 1500;
+    const isAke =
+      weightPerPiece != null &&
+      weightPerPiece >= 650 &&
+      weightPerPiece <= 1500;
+
+    // Pallet amounts from division are always rounded up
+    const palletsFromSite: number | null = isFlowers
+      ? Math.ceil(pieces! / 24)
+      : isPmc && pieces != null
+        ? 6 * pieces
+        : isAke && pieces != null
+          ? 3 * pieces
+          : pieces;
+
     const status = row["status 1"] ?? row["status"] ?? "";
 
     await prisma.consignment.upsert({
