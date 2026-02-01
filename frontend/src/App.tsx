@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
-import { ProtectedRoute, ChangePasswordRoute, DeveloperRoute } from "./components/ProtectedRoute";
+import { ProtectedRoute, ChangePasswordRoute, ManagementRoute } from "./components/ProtectedRoute";
 import { PageLayout } from "./components/PageLayout";
 import { LoginPage } from "./pages/LoginPage";
 import { ChangePasswordPage } from "./pages/ChangePasswordPage";
@@ -43,7 +43,7 @@ export const App = () => {
             <Route path="/consignments" element={<ConsignmentsPage />} />
             <Route path="/fleet" element={<FleetPage />} />
             <Route path="/reports" element={<ReportsPage />} />
-            <Route path="/management" element={<DeveloperRoute><ManagementPage /></DeveloperRoute>} />
+            <Route path="/management" element={<ManagementRoute><ManagementPage /></ManagementRoute>} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

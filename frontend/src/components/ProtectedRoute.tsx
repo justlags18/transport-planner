@@ -28,8 +28,8 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   return <>{children}</>;
 }
 
-/** Use for /management: only Developers and Management can access; others redirect to /. */
-export function DeveloperRoute({ children }: ProtectedRouteProps) {
+/** Use for /management: Planner, Management and Developer can access; others redirect to /. */
+export function ManagementRoute({ children }: ProtectedRouteProps) {
   const { user, loading } = useAuth();
 
   if (loading) {
@@ -40,7 +40,8 @@ export function DeveloperRoute({ children }: ProtectedRouteProps) {
     );
   }
 
-  if (!user || (user.role !== "Developer" && user.role !== "Management")) {
+  const allowed = user?.role === "Developer" || user?.role === "Management" || user?.role === "Planner";
+  if (!user || !allowed) {
     return <Navigate to="/" replace />;
   }
 

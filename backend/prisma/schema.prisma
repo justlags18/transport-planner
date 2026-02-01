@@ -107,3 +107,16 @@ model AuditLog {
   @@index([createdAt])
   @@index([archivedAt])
 }
+
+model CustomerPref {
+  id           String   @id @default(cuid())
+  displayName  String
+  customerKey  String?  // optional link to CustomerProfile / consignments
+  deliveryType String   // "deliver" | "self_collect"
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([deliveryType])
+  @@index([customerKey])
+}

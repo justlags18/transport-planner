@@ -1,9 +1,10 @@
 import { Router } from "express";
 import { authMiddleware } from "../middleware/auth";
-import { requireDeveloper, requireManagementOrDeveloper } from "../middleware/requireDeveloper";
+import { requireManagementOrDeveloper, requirePlannerOrAbove } from "../middleware/requireDeveloper";
 import { healthRouter } from "./health";
 import { authRouter } from "./auth";
 import { usersRouter } from "./users";
+import { customerPrefsRouter } from "./customerPrefs";
 import { consignmentsRouter } from "./consignments";
 import { lorriesRouter } from "./lorries";
 import { palletOverridesRouter } from "./palletOverrides";
@@ -25,6 +26,10 @@ routesRouter.use("/", consignmentsRouter);
 routesRouter.use("/", lorriesRouter);
 routesRouter.use("/", palletOverridesRouter);
 routesRouter.use("/", assignmentsRouter);
+
+// Planner+ can access customer prefs (must be before Management-only block)
+routesRouter.use(requirePlannerOrAbove);
+routesRouter.use("/", customerPrefsRouter);
 
 routesRouter.use(requireManagementOrDeveloper);
 routesRouter.use("/", usersRouter);

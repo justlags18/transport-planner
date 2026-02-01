@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../context/AuthContext";
 import { apiGet, apiPost, apiPatch, apiDelete } from "../api/client";
-import { ROLES, canMakeDeveloper, type Role } from "../permissions";
+import { ROLES, canMakeDeveloper, canAccessManagement, canAccessUsersOrTrucks, type Role } from "../permissions";
 import { RoleBadge } from "../components/RoleBadge";
 
 const TRUCK_CLASSES = ["Class1", "Class2", "Vans"] as const;
@@ -17,6 +17,14 @@ const TRUCK_CLASS_CAPACITY: Record<string, number> = {
   Class1: 26,
   Class2: 16,
   Vans: 3,
+};
+
+const DELIVERY_TYPES = ["deliver", "self_collect"] as const;
+type DeliveryType = (typeof DELIVERY_TYPES)[number];
+
+const DELIVERY_TYPE_LABELS: Record<string, string> = {
+  deliver: "We deliver",
+  self_collect: "Self collect",
 };
 
 type UserRow = {
@@ -36,14 +44,30 @@ type LorryRow = {
   updatedAt?: string;
 };
 
+type CustomerPrefRow = {
+  id: string;
+  displayName: string;
+  customerKey: string | null;
+  deliveryType: string;
+  notes: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
 type ListUsersResponse = { ok: boolean; users: UserRow[] };
 type CreateUserResponse = { ok: boolean; user: UserRow; temporaryPassword?: string };
 type ResetPasswordResponse = { ok: boolean; temporaryPassword: string };
 type UpdateRoleResponse = { ok: boolean; user: UserRow };
 
+type ListCustomerPrefsResponse = { ok: boolean; prefs: CustomerPrefRow[] };
+type CreateCustomerPrefResponse = { ok: boolean; pref: CustomerPrefRow };
+type UpdateCustomerPrefResponse = { ok: boolean; pref: CustomerPrefRow };
+
 export const ManagementPage = () => {
   const { user: currentUser } = useAuth();
-  const [activeTab, setActiveTab] = useState<"users" | "trucks">("users");
+  const role = currentUser?.role ?? "Clerk";
+  const showUsersTrucks = canAccessUsersOrTrucks(role);
+  const [activeTab, setActiveTab] = useState<"users" | "trucks" | "customer-pref">("customer-pref");
 
   // Users state
   const [users, setUsers] = useState<UserRow[]>([]);
@@ -72,6 +96,21 @@ export const ManagementPage = () => {
   const [editClass, setEditClass] = useState<TruckClass>("Class1");
   const [editCapacity, setEditCapacity] = useState(26);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  // Customer Pref state
+  const [prefs, setPrefs] = useState<CustomerPrefRow[]>([]);
+  const [prefsLoading, setPrefsLoading] = useState(false);
+  const [prefDisplayName, setPrefDisplayName] = useState("");
+  const [prefCustomerKey, setPrefCustomerKey] = useState("");
+  const [prefDeliveryType, setPrefDeliveryType] = useState<DeliveryType>("deliver");
+  const [prefNotes, setPrefNotes] = useState("");
+  const [addingPref, setAddingPref] = useState(false);
+  const [editingPrefId, setEditingPrefId] = useState<string | null>(null);
+  const [editPrefDisplayName, setEditPrefDisplayName] = useState("");
+  const [editPrefCustomerKey, setEditPrefCustomerKey] = useState("");
+  const [editPrefDeliveryType, setEditPrefDeliveryType] = useState<DeliveryType>("deliver");
+  const [editPrefNotes, setEditPrefNotes] = useState("");
+  const [deletingPrefId, setDeletingPrefId] = useState<string | null>(null);
 
   const [error, setError] = useState("");
 
@@ -118,6 +157,21 @@ export const ManagementPage = () => {
     }
   }, []);
 
+  const loadCustomerPrefs = useCallback(async () => {
+    setPrefsLoading(true);
+    setError("");
+    try {
+      const res = await apiGet<ListCustomerPrefsResponse>("/api/customer-prefs");
+      if (res.ok && res.prefs) {
+        setPrefs(res.prefs);
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load customer preferences");
+    } finally {
+      setPrefsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (activeTab === "users") loadUsers();
   }, [activeTab, loadUsers]);
@@ -125,6 +179,10 @@ export const ManagementPage = () => {
   useEffect(() => {
     if (activeTab === "trucks") loadLorries();
   }, [activeTab, loadLorries]);
+
+  useEffect(() => {
+    if (activeTab === "customer-pref") loadCustomerPrefs();
+  }, [activeTab, loadCustomerPrefs]);
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -268,6 +326,84 @@ export const ManagementPage = () => {
     }
   };
 
+  const handleAddPref = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setAddingPref(true);
+    try {
+      const res = await apiPost<CreateCustomerPrefResponse>("/api/customer-prefs", {
+        displayName: prefDisplayName.trim(),
+        customerKey: prefCustomerKey.trim() || undefined,
+        deliveryType: prefDeliveryType,
+        notes: prefNotes.trim() || undefined,
+      });
+      if (res.ok && res.pref) {
+        setPrefs((prev) =>
+          [...prev, res.pref!].sort((a, b) => {
+            const typeOrder = (t: string) => (t === "deliver" ? 1 : 2);
+            if (typeOrder(a.deliveryType) !== typeOrder(b.deliveryType)) return typeOrder(a.deliveryType) - typeOrder(b.deliveryType);
+            return a.displayName.localeCompare(b.displayName);
+          })
+        );
+        setPrefDisplayName("");
+        setPrefCustomerKey("");
+        setPrefDeliveryType("deliver");
+        setPrefNotes("");
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to add customer preference");
+    } finally {
+      setAddingPref(false);
+    }
+  };
+
+  const startEditPref = (p: CustomerPrefRow) => {
+    setEditingPrefId(p.id);
+    setEditPrefDisplayName(p.displayName);
+    setEditPrefCustomerKey(p.customerKey ?? "");
+    setEditPrefDeliveryType((p.deliveryType as DeliveryType) || "deliver");
+    setEditPrefNotes(p.notes ?? "");
+  };
+
+  const handleUpdatePref = async () => {
+    if (!editingPrefId) return;
+    setError("");
+    try {
+      const res = await apiPatch<UpdateCustomerPrefResponse>(`/api/customer-prefs/${editingPrefId}`, {
+        displayName: editPrefDisplayName.trim(),
+        customerKey: editPrefCustomerKey.trim() || null,
+        deliveryType: editPrefDeliveryType,
+        notes: editPrefNotes.trim() || null,
+      });
+      if (res.ok && res.pref) {
+        setPrefs((prev) => {
+          const next = prev.map((x) => (x.id === editingPrefId ? res.pref! : x));
+          return next.sort((a, b) => {
+            const typeOrder = (t: string) => (t === "deliver" ? 1 : 2);
+            if (typeOrder(a.deliveryType) !== typeOrder(b.deliveryType)) return typeOrder(a.deliveryType) - typeOrder(b.deliveryType);
+            return a.displayName.localeCompare(b.displayName);
+          });
+        });
+        setEditingPrefId(null);
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to update customer preference");
+    }
+  };
+
+  const handleDeletePref = async (id: string) => {
+    setError("");
+    setDeletingPrefId(id);
+    try {
+      await apiDelete(`/api/customer-prefs/${id}`);
+      setPrefs((prev) => prev.filter((p) => p.id !== id));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to delete customer preference");
+    } finally {
+      setDeletingPrefId(null);
+    }
+  };
+
   const formatDate = (s: string) => {
     try {
       return new Date(s).toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" });
@@ -276,7 +412,7 @@ export const ManagementPage = () => {
     }
   };
 
-  if (!currentUser || (currentUser.role !== "Developer" && currentUser.role !== "Management")) {
+  if (!currentUser || !canAccessManagement(role)) {
     return null;
   }
 
@@ -287,18 +423,29 @@ export const ManagementPage = () => {
       <nav className="management-tabs" aria-label="Management sections">
         <button
           type="button"
-          className={`management-tab${activeTab === "users" ? " management-tab--active" : ""}`}
-          onClick={() => setActiveTab("users")}
+          className={`management-tab${activeTab === "customer-pref" ? " management-tab--active" : ""}`}
+          onClick={() => setActiveTab("customer-pref")}
         >
-          Users
+          Customer Pref
         </button>
-        <button
-          type="button"
-          className={`management-tab${activeTab === "trucks" ? " management-tab--active" : ""}`}
-          onClick={() => setActiveTab("trucks")}
-        >
-          Trucks
-        </button>
+        {showUsersTrucks && (
+          <>
+            <button
+              type="button"
+              className={`management-tab${activeTab === "users" ? " management-tab--active" : ""}`}
+              onClick={() => setActiveTab("users")}
+            >
+              Users
+            </button>
+            <button
+              type="button"
+              className={`management-tab${activeTab === "trucks" ? " management-tab--active" : ""}`}
+              onClick={() => setActiveTab("trucks")}
+            >
+              Trucks
+            </button>
+          </>
+        )}
       </nav>
 
       {error && (
@@ -619,6 +766,166 @@ export const ManagementPage = () => {
                                 disabled={deletingId === l.id}
                               >
                                 {deletingId === l.id ? "Deleting…" : "Remove"}
+                              </button>
+                            </>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+        </>
+      )}
+
+      {activeTab === "customer-pref" && (
+        <>
+          <p className="management-intro">
+            Track which customers we deliver to and which collect goods themselves. Add display names and optional customer keys to match consignments.
+          </p>
+
+          <section className="management-section">
+            <h3 className="management-section-title">Add customer preference</h3>
+            <form className="management-create-form" onSubmit={handleAddPref}>
+              <label>
+                Display name
+                <input
+                  type="text"
+                  value={prefDisplayName}
+                  onChange={(e) => setPrefDisplayName(e.target.value)}
+                  placeholder="e.g. Acme Ltd"
+                  required
+                  className="management-input"
+                />
+              </label>
+              <label>
+                Customer key (optional)
+                <input
+                  type="text"
+                  value={prefCustomerKey}
+                  onChange={(e) => setPrefCustomerKey(e.target.value)}
+                  placeholder="e.g. acme-ltd"
+                  className="management-input"
+                />
+              </label>
+              <label>
+                Delivery type
+                <select
+                  value={prefDeliveryType}
+                  onChange={(e) => setPrefDeliveryType(e.target.value as DeliveryType)}
+                  className="management-select"
+                >
+                  {DELIVERY_TYPES.map((d) => (
+                    <option key={d} value={d}>{DELIVERY_TYPE_LABELS[d]}</option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Notes (optional)
+                <input
+                  type="text"
+                  value={prefNotes}
+                  onChange={(e) => setPrefNotes(e.target.value)}
+                  placeholder="e.g. Gate 2"
+                  className="management-input"
+                />
+              </label>
+              <button type="submit" className="management-btn management-btn-primary" disabled={addingPref}>
+                {addingPref ? "Adding…" : "Add"}
+              </button>
+            </form>
+          </section>
+
+          <section className="management-section">
+            <h3 className="management-section-title">Customer preferences</h3>
+            {prefsLoading ? (
+              <p className="management-loading">Loading customer preferences…</p>
+            ) : (
+              <div className="management-table-wrap">
+                <table className="management-table">
+                  <thead>
+                    <tr>
+                      <th>Display name</th>
+                      <th>Customer key</th>
+                      <th>Delivery type</th>
+                      <th>Notes</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {prefs.map((p) => (
+                      <tr key={p.id}>
+                        <td>
+                          {editingPrefId === p.id ? (
+                            <input
+                              type="text"
+                              value={editPrefDisplayName}
+                              onChange={(e) => setEditPrefDisplayName(e.target.value)}
+                              className="management-input management-input-inline"
+                            />
+                          ) : (
+                            p.displayName
+                          )}
+                        </td>
+                        <td>
+                          {editingPrefId === p.id ? (
+                            <input
+                              type="text"
+                              value={editPrefCustomerKey}
+                              onChange={(e) => setEditPrefCustomerKey(e.target.value)}
+                              className="management-input management-input-inline"
+                              placeholder="Optional"
+                            />
+                          ) : (
+                            p.customerKey ?? "—"
+                          )}
+                        </td>
+                        <td>
+                          {editingPrefId === p.id ? (
+                            <select
+                              value={editPrefDeliveryType}
+                              onChange={(e) => setEditPrefDeliveryType(e.target.value as DeliveryType)}
+                              className="management-select management-select-small"
+                            >
+                              {DELIVERY_TYPES.map((d) => (
+                                <option key={d} value={d}>{DELIVERY_TYPE_LABELS[d]}</option>
+                              ))}
+                            </select>
+                          ) : (
+                            DELIVERY_TYPE_LABELS[p.deliveryType] ?? p.deliveryType
+                          )}
+                        </td>
+                        <td>
+                          {editingPrefId === p.id ? (
+                            <input
+                              type="text"
+                              value={editPrefNotes}
+                              onChange={(e) => setEditPrefNotes(e.target.value)}
+                              className="management-input management-input-inline"
+                              placeholder="Optional"
+                            />
+                          ) : (
+                            p.notes ?? "—"
+                          )}
+                        </td>
+                        <td>
+                          {editingPrefId === p.id ? (
+                            <>
+                              <button type="button" className="management-btn management-btn-small" onClick={handleUpdatePref}>Save</button>
+                              <button type="button" className="management-btn management-btn-small" onClick={() => setEditingPrefId(null)}>Cancel</button>
+                            </>
+                          ) : (
+                            <>
+                              <button type="button" className="management-btn management-btn-small management-btn-link" onClick={() => startEditPref(p)}>Edit</button>
+                              <button
+                                type="button"
+                                className="management-btn management-btn-small management-btn-danger"
+                                onClick={() => handleDeletePref(p.id)}
+                                disabled={deletingPrefId === p.id}
+                              >
+                                {deletingPrefId === p.id ? "Deleting…" : "Remove"}
                               </button>
                             </>
                           )}

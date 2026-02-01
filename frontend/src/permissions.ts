@@ -13,14 +13,14 @@ export type NavItem = {
   roles?: Role[];
 };
 
-/** Sidebar nav items; Management is Developer-only. */
+/** Sidebar nav items; Management is Planner+ (Planner, Management, Developer). */
 export const NAV_ITEMS: NavItem[] = [
   { path: "/overview", label: "Overview" },
   { path: "/", label: "Today's Plan" },
   { path: "/consignments", label: "Consignments" },
   { path: "/fleet", label: "Fleet" },
   { path: "/reports", label: "Reports" },
-  { path: "/management", label: "Management", roles: ["Management", "Developer"] },
+  { path: "/management", label: "Management", roles: ["Planner", "Management", "Developer"] },
 ];
 
 export function canAccessNavItem(role: Role, item: NavItem): boolean {
@@ -29,6 +29,10 @@ export function canAccessNavItem(role: Role, item: NavItem): boolean {
 }
 
 export function canAccessManagement(role: Role): boolean {
+  return role === "Developer" || role === "Management" || role === "Planner";
+}
+
+export function canAccessUsersOrTrucks(role: Role): boolean {
   return role === "Developer" || role === "Management";
 }
 
