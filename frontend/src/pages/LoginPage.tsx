@@ -43,7 +43,7 @@ export const LoginPage = () => {
             className="login-logo"
             width={220}
             height={66}
-            fetchpriority="high"
+            fetchPriority="high"
           />
         </div>
         <h1 className="login-app-name">Transport Planner</h1>

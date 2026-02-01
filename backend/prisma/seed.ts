@@ -1,33 +1,8 @@
-import { PrismaClient } from "@prisma/client";
-import bcrypt from "bcryptjs";
-
-const prisma = new PrismaClient();
-
-const INITIAL_EMAIL = "jamie@pml-ltd.com";
-const INITIAL_PASSWORD = "Password123";
+import { prisma } from "../src/db";
+import { ensureInitialUser } from "../src/seed";
 
 async function main() {
-  const existing = await prisma.user.findUnique({
-    where: { email: INITIAL_EMAIL.toLowerCase() },
-  });
-
-  if (existing) {
-    console.log("Initial user already exists:", INITIAL_EMAIL);
-    return;
-  }
-
-  const passwordHash = await bcrypt.hash(INITIAL_PASSWORD, 10);
-
-  await prisma.user.create({
-    data: {
-      email: INITIAL_EMAIL.toLowerCase(),
-      passwordHash,
-      role: "Developer",
-      forcePasswordChange: true,
-    },
-  });
-
-  console.log("Created initial user:", INITIAL_EMAIL, "(Developer, must change password on first login)");
+  await ensureInitialUser();
 }
 
 main()
