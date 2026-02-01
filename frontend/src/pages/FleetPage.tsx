@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { apiGet } from "../api/client";
+import { apiGet, apiPatch } from "../api/client";
 import { useAuth } from "../context/AuthContext";
 
 type LorryRow = {
@@ -8,6 +8,7 @@ type LorryRow = {
   capacityPallets: number;
   usedPallets: number;
   assignments: { id: string }[];
+  status?: "on" | "off";
 };
 
 export const FleetPage = () => {
@@ -38,7 +39,9 @@ export const FleetPage = () => {
           const next = { ...prev };
           for (const lorry of sorted) {
             if (!next[lorry.id]) {
-              next[lorry.id] = "on";
+              next[lorry.id] = lorry.status ?? "on";
+            } else if (lorry.status && next[lorry.id] !== lorry.status) {
+              next[lorry.id] = lorry.status;
             }
           }
           return next;
@@ -78,28 +81,34 @@ export const FleetPage = () => {
               const used = lorry.usedPallets ?? 0;
               const capacity = Math.max(lorry.capacityPallets, 1);
               const percent = Math.min(100, Math.round((used / capacity) * 100));
+              const toggleStatus = async () => {
+                if (!canToggleStatus) return;
+                const nextStatus = status === "on" ? "off" : "on";
+                try {
+                  await apiPatch(`/api/lorries/${lorry.id}/status`, { status: nextStatus });
+                  setStatusById((prev) => ({ ...prev, [lorry.id]: nextStatus }));
+                } catch (e) {
+                  setError(e instanceof Error ? e.message : "Failed to update status");
+                }
+              };
+
               return (
                 <article key={lorry.id} className="fleet-card">
                   <div className="fleet-card-header">
                     <h3 className="fleet-card-title">{lorry.name}</h3>
-                    <span className="fleet-card-badge">
-                      {lorry.assignments?.length ?? 0} stops
+                    <span className={`fleet-card-status ${status}`}>
+                      {status === "on" ? "ON ROAD" : "OFF ROAD"}
                     </span>
                   </div>
                   <div className="fleet-card-status-row">
-                    <span className={`fleet-card-status ${status}`}>
-                      {status === "on" ? "ON ROAD" : "OFF ROAD"}
+                    <span className="fleet-card-badge">
+                      {lorry.assignments?.length ?? 0} stops
                     </span>
                     {canToggleStatus ? (
                       <button
                         type="button"
                         className="fleet-toggle-btn"
-                        onClick={() =>
-                          setStatusById((prev) => ({
-                            ...prev,
-                            [lorry.id]: prev[lorry.id] === "on" ? "off" : "on",
-                          }))
-                        }
+                        onClick={toggleStatus}
                       >
                         Toggle
                       </button>

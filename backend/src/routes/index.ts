@@ -8,6 +8,7 @@ import { consignmentsRouter } from "./consignments";
 import { lorriesRouter } from "./lorries";
 import { palletOverridesRouter } from "./palletOverrides";
 import { assignmentsRouter } from "./assignments";
+import { auditLogsRouter } from "./auditLogs";
 import pkg from "../../package.json";
 
 export const routesRouter = Router();
@@ -27,3 +28,4 @@ routesRouter.use("/", assignmentsRouter);
 
 routesRouter.use(requireManagementOrDeveloper);
 routesRouter.use("/", usersRouter);
+routesRouter.use("/", auditLogsRouter);

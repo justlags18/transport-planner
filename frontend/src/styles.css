@@ -1133,9 +1133,9 @@ button:disabled {
 
 .fleet-card-status-row {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 8px;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
 }
 
 .fleet-card-status.on {

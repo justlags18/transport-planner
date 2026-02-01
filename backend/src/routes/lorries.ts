@@ -9,6 +9,10 @@ function canManageLorries(role: string): boolean {
   return role === "Management" || role === "Developer";
 }
 
+function canToggleStatus(role: string): boolean {
+  return role === "Planner" || role === "Management" || role === "Developer";
+}
+
 export const lorriesRouter = Router();
 
 const defaultCapacityPallets = (() => {
@@ -26,6 +30,10 @@ const updateLorrySchema = z.object({
   name: z.string().trim().min(1).optional(),
   truckClass: z.enum(TRUCK_CLASSES).optional(),
   capacityPallets: z.coerce.number().int().positive().optional(),
+});
+
+const updateStatusSchema = z.object({
+  status: z.enum(["on", "off"]),
 });
 
 lorriesRouter.get("/api/lorries", async (_req, res, next) => {
@@ -134,6 +142,49 @@ lorriesRouter.patch("/api/lorries/:id", async (req: AuthRequest, res: Response, 
     });
 
     res.json(lorry);
+  } catch (err) {
+    next(err);
+  }
+});
+
+lorriesRouter.patch("/api/lorries/:id/status", async (req: AuthRequest, res: Response, next) => {
+  try {
+    if (!canToggleStatus(req.user?.role ?? "")) {
+      res.status(403).json({ ok: false, error: "Forbidden: Planner or higher role required" });
+      return;
+    }
+
+    const parsed = updateStatusSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ ok: false, error: "Invalid status" });
+      return;
+    }
+
+    const { id } = req.params;
+    const existing = await prisma.lorry.findUnique({ where: { id } });
+    if (!existing) {
+      res.status(404).json({ ok: false, error: "Lorry not found" });
+      return;
+    }
+
+    const { status } = parsed.data;
+    const updated = await prisma.lorry.update({
+      where: { id },
+      data: { status },
+    });
+
+    await prisma.auditLog.create({
+      data: {
+        actorId: req.user?.userId ?? null,
+        actorEmail: req.user?.email ?? null,
+        action: "lorry.status",
+        entityType: "lorry",
+        entityId: id,
+        message: `Set ${existing.name} ${status === "on" ? "ON ROAD" : "OFF ROAD"}`,
+      },
+    });
+
+    res.json(updated);
   } catch (err) {
     next(err);
   }

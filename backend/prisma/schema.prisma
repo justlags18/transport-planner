@@ -36,6 +36,7 @@ model Lorry {
   name            String
   truckClass      String       @default("Class1") // Class1 | Class2
   capacityPallets Int
+  status          String       @default("on")
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
 
@@ -84,4 +85,17 @@ model User {
   updatedAt          DateTime @updatedAt
 
   @@index([email])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  actorEmail String?
+  action     String
+  entityType String
+  entityId   String?
+  message    String
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
 }
