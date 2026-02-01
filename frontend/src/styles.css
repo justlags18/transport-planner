@@ -723,18 +723,19 @@ button:disabled {
   flex-direction: column;
   transition: width 0.2s ease;
   position: relative;
+  --sidebar-width: 240px;
 }
 
 .dashboard-sidebar--collapsed {
   width: 72px;
+  --sidebar-width: 72px;
 }
 
 .dashboard-sidebar-toggle {
-  position: sticky;
+  position: fixed;
   top: 50%;
-  align-self: flex-end;
-  margin-right: -18px;
-  transform: translate(50%, -50%);
+  left: var(--sidebar-width);
+  transform: translate(-50%, -50%);
   height: 40px;
   width: 40px;
   font-size: 1.1rem;
@@ -747,7 +748,7 @@ button:disabled {
 }
 
 .dashboard-sidebar--collapsed .dashboard-sidebar-toggle {
-  margin-right: -14px;
+  left: var(--sidebar-width);
 }
 
 .dashboard-sidebar-nav {
