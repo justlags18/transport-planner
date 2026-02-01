@@ -33,6 +33,35 @@ customerPrefsRouter.get("/api/customer-prefs", async (_req: AuthRequest, res: Re
   }
 });
 
+/** Unique client names from consignments (scraper) that are not yet in CustomerPref. One per client; once selected they drop out of this list. */
+customerPrefsRouter.get("/api/customer-prefs/available-customers", async (_req: AuthRequest, res: Response) => {
+  try {
+    const rows = await prisma.consignment.findMany({
+      where: { customerKey: { not: null } },
+      select: { customerKey: true, customerNameRaw: true },
+    });
+    const byKey = new Map<string, string>();
+    for (const r of rows) {
+      if (r.customerKey && !byKey.has(r.customerKey)) {
+        byKey.set(r.customerKey, r.customerNameRaw ?? r.customerKey);
+      }
+    }
+    const usedKeys = await prisma.customerPref.findMany({
+      where: { customerKey: { not: null } },
+      select: { customerKey: true },
+    });
+    const usedSet = new Set(usedKeys.map((p) => p.customerKey).filter(Boolean) as string[]);
+    const customers = Array.from(byKey.entries())
+      .filter(([key]) => !usedSet.has(key))
+      .map(([customerKey, displayName]) => ({ customerKey, displayName }))
+      .sort((a, b) => a.displayName.localeCompare(b.displayName, undefined, { sensitivity: "base" }));
+    res.json({ ok: true, customers });
+  } catch (err) {
+    console.error("Available customers error:", err);
+    res.status(500).json({ ok: false, error: "Failed to load available customers" });
+  }
+});
+
 customerPrefsRouter.post("/api/customer-prefs", async (req: AuthRequest, res: Response) => {
   try {
     const parsed = createCustomerPrefSchema.safeParse(req.body);

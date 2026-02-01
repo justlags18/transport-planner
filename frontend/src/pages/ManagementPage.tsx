@@ -63,6 +63,9 @@ type ListCustomerPrefsResponse = { ok: boolean; prefs: CustomerPrefRow[] };
 type CreateCustomerPrefResponse = { ok: boolean; pref: CustomerPrefRow };
 type UpdateCustomerPrefResponse = { ok: boolean; pref: CustomerPrefRow };
 
+type AvailableCustomer = { customerKey: string; displayName: string };
+type AvailableCustomersResponse = { ok: boolean; customers: AvailableCustomer[] };
+
 export const ManagementPage = () => {
   const { user: currentUser } = useAuth();
   const role = currentUser?.role ?? "Clerk";
@@ -100,8 +103,6 @@ export const ManagementPage = () => {
   // Customer Pref state
   const [prefs, setPrefs] = useState<CustomerPrefRow[]>([]);
   const [prefsLoading, setPrefsLoading] = useState(false);
-  const [prefDisplayName, setPrefDisplayName] = useState("");
-  const [prefCustomerKey, setPrefCustomerKey] = useState("");
   const [prefDeliveryType, setPrefDeliveryType] = useState<DeliveryType>("deliver");
   const [prefNotes, setPrefNotes] = useState("");
   const [addingPref, setAddingPref] = useState(false);
@@ -111,6 +112,9 @@ export const ManagementPage = () => {
   const [editPrefDeliveryType, setEditPrefDeliveryType] = useState<DeliveryType>("deliver");
   const [editPrefNotes, setEditPrefNotes] = useState("");
   const [deletingPrefId, setDeletingPrefId] = useState<string | null>(null);
+  const [availableCustomers, setAvailableCustomers] = useState<AvailableCustomer[]>([]);
+  const [availableCustomersLoading, setAvailableCustomersLoading] = useState(false);
+  const [selectedClientKey, setSelectedClientKey] = useState("");
 
   const [error, setError] = useState("");
 
@@ -172,6 +176,26 @@ export const ManagementPage = () => {
     }
   }, []);
 
+  const loadAvailableCustomers = useCallback(async () => {
+    setAvailableCustomersLoading(true);
+    setError("");
+    try {
+      const res = await apiGet<AvailableCustomersResponse>("/api/customer-prefs/available-customers");
+      if (res.ok && res.customers) {
+        setAvailableCustomers(res.customers);
+        setSelectedClientKey((prev) => {
+          if (!prev) return "";
+          const stillThere = res.customers.some((c) => c.customerKey === prev);
+          return stillThere ? prev : "";
+        });
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load client list");
+    } finally {
+      setAvailableCustomersLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (activeTab === "users") loadUsers();
   }, [activeTab, loadUsers]);
@@ -181,8 +205,11 @@ export const ManagementPage = () => {
   }, [activeTab, loadLorries]);
 
   useEffect(() => {
-    if (activeTab === "customer-pref") loadCustomerPrefs();
-  }, [activeTab, loadCustomerPrefs]);
+    if (activeTab === "customer-pref") {
+      loadCustomerPrefs();
+      loadAvailableCustomers();
+    }
+  }, [activeTab, loadCustomerPrefs, loadAvailableCustomers]);
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -328,12 +355,17 @@ export const ManagementPage = () => {
 
   const handleAddPref = async (e: React.FormEvent) => {
     e.preventDefault();
+    const customer = availableCustomers.find((c) => c.customerKey === selectedClientKey);
+    if (!customer) {
+      setError("Please select a client from the list.");
+      return;
+    }
     setError("");
     setAddingPref(true);
     try {
       const res = await apiPost<CreateCustomerPrefResponse>("/api/customer-prefs", {
-        displayName: prefDisplayName.trim(),
-        customerKey: prefCustomerKey.trim() || undefined,
+        displayName: customer.displayName,
+        customerKey: customer.customerKey,
         deliveryType: prefDeliveryType,
         notes: prefNotes.trim() || undefined,
       });
@@ -345,10 +377,10 @@ export const ManagementPage = () => {
             return a.displayName.localeCompare(b.displayName);
           })
         );
-        setPrefDisplayName("");
-        setPrefCustomerKey("");
+        setSelectedClientKey("");
         setPrefDeliveryType("deliver");
         setPrefNotes("");
+        loadAvailableCustomers();
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to add customer preference");
@@ -397,6 +429,7 @@ export const ManagementPage = () => {
     try {
       await apiDelete(`/api/customer-prefs/${id}`);
       setPrefs((prev) => prev.filter((p) => p.id !== id));
+      loadAvailableCustomers();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to delete customer preference");
     } finally {
@@ -783,59 +816,67 @@ export const ManagementPage = () => {
       {activeTab === "customer-pref" && (
         <>
           <p className="management-intro">
-            Track which customers we deliver to and which collect goods themselves. Add display names and optional customer keys to match consignments.
+            Track which customers we deliver to and which collect goods themselves. Clients are pulled from consignments (scraper); pick one, set delivery type, then add—it will disappear from the list so you can work through the list and easily add new customers as they appear.
           </p>
 
           <section className="management-section">
             <h3 className="management-section-title">Add customer preference</h3>
-            <form className="management-create-form" onSubmit={handleAddPref}>
-              <label>
-                Display name
-                <input
-                  type="text"
-                  value={prefDisplayName}
-                  onChange={(e) => setPrefDisplayName(e.target.value)}
-                  placeholder="e.g. Acme Ltd"
-                  required
-                  className="management-input"
-                />
-              </label>
-              <label>
-                Customer key (optional)
-                <input
-                  type="text"
-                  value={prefCustomerKey}
-                  onChange={(e) => setPrefCustomerKey(e.target.value)}
-                  placeholder="e.g. acme-ltd"
-                  className="management-input"
-                />
-              </label>
-              <label>
-                Delivery type
-                <select
-                  value={prefDeliveryType}
-                  onChange={(e) => setPrefDeliveryType(e.target.value as DeliveryType)}
-                  className="management-select"
+            {availableCustomersLoading ? (
+              <p className="management-loading">Loading client list…</p>
+            ) : (
+              <form className="management-create-form" onSubmit={handleAddPref}>
+                <label>
+                  Client (from consignments)
+                  <select
+                    value={selectedClientKey}
+                    onChange={(e) => setSelectedClientKey(e.target.value)}
+                    className="management-select"
+                    required
+                  >
+                    <option value="">— Select a client —</option>
+                    {availableCustomers.map((c) => (
+                      <option key={c.customerKey} value={c.customerKey}>
+                        {c.displayName}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                {availableCustomers.length === 0 && !availableCustomersLoading && (
+                  <p className="management-intro" style={{ marginTop: "0.5rem" }}>
+                    No clients from consignments yet. Run the scraper or add consignments; new names will appear here.
+                  </p>
+                )}
+                <label>
+                  Delivery type
+                  <select
+                    value={prefDeliveryType}
+                    onChange={(e) => setPrefDeliveryType(e.target.value as DeliveryType)}
+                    className="management-select"
+                  >
+                    {DELIVERY_TYPES.map((d) => (
+                      <option key={d} value={d}>{DELIVERY_TYPE_LABELS[d]}</option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Notes (optional)
+                  <input
+                    type="text"
+                    value={prefNotes}
+                    onChange={(e) => setPrefNotes(e.target.value)}
+                    placeholder="e.g. Gate 2"
+                    className="management-input"
+                  />
+                </label>
+                <button
+                  type="submit"
+                  className="management-btn management-btn-primary"
+                  disabled={addingPref || availableCustomers.length === 0}
                 >
-                  {DELIVERY_TYPES.map((d) => (
-                    <option key={d} value={d}>{DELIVERY_TYPE_LABELS[d]}</option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                Notes (optional)
-                <input
-                  type="text"
-                  value={prefNotes}
-                  onChange={(e) => setPrefNotes(e.target.value)}
-                  placeholder="e.g. Gate 2"
-                  className="management-input"
-                />
-              </label>
-              <button type="submit" className="management-btn management-btn-primary" disabled={addingPref}>
-                {addingPref ? "Adding…" : "Add"}
-              </button>
-            </form>
+                  {addingPref ? "Adding…" : "Add"}
+                </button>
+              </form>
+            )}
           </section>
 
           <section className="management-section">
