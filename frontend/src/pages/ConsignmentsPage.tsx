@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { apiGet } from "../api/client";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { apiGet, apiPatch } from "../api/client";
 
 type ConsignmentDTO = {
   id: string;
@@ -59,34 +59,24 @@ export const ConsignmentsPage = () => {
   const [archivedOnFilter, setArchivedOnFilter] = useState(""); // YYYY-MM-DD: when scope is archived, filter by archived-on date
 
   useEffect(() => {
-    let active = true;
-    const load = async () => {
-      setLoading(true);
+    loadConsignments();
+  }, [loadConsignments]);
+
+  const handleUnarchive = useCallback(
+    async (id: string) => {
+      setUnarchivingId(id);
       setError("");
       try {
-        const params = new URLSearchParams();
-        if (scope === "active") params.set("active", "1");
-        else if (scope === "archived") {
-          params.set("archived", "1");
-          if (archivedOnFilter) params.set("archivedOn", archivedOnFilter);
-        }
-        if (search.trim()) params.set("search", search.trim());
-        if (dateFilter) params.set("date", dateFilter);
-        const res = await apiGet<ConsignmentResponse>(`/api/consignments?${params.toString()}`);
-        if (!active) return;
-        setItems(res.items ?? []);
+        await apiPatch<{ ok: boolean }>(`/api/consignments/${encodeURIComponent(id)}/unarchive`, {});
+        setItems((prev) => prev.filter((item) => item.id !== id));
       } catch (err) {
-        if (!active) return;
-        setError(err instanceof Error ? err.message : "Failed to load consignments");
+        setError(err instanceof Error ? err.message : "Unarchive failed");
       } finally {
-        if (active) setLoading(false);
+        setUnarchivingId(null);
       }
-    };
-    load();
-    return () => {
-      active = false;
-    };
-  }, [scope, search, dateFilter, archivedOnFilter]);
+    },
+    []
+  );
 
   const toEtaMillis = (value: string | null) => {
     if (!value) return Number.POSITIVE_INFINITY;
@@ -247,6 +237,7 @@ export const ConsignmentsPage = () => {
                       <th>Packages</th>
                       <th>Observation</th>
                       <th>Product Description</th>
+                      {scope === "archived" ? <th>Actions</th> : null}
                     </tr>
                   </thead>
                   <tbody>
@@ -268,6 +259,19 @@ export const ConsignmentsPage = () => {
                           <td>{item.packagesRaw ?? "-"}</td>
                           <td>{item.observationRaw ?? "-"}</td>
                           <td>{item.productDescriptionRaw ?? "-"}</td>
+                          {scope === "archived" ? (
+                            <td>
+                              <button
+                                type="button"
+                                className="management-btn management-btn-small"
+                                onClick={() => handleUnarchive(item.id)}
+                                disabled={unarchivingId === item.id}
+                                title="Move back to Active"
+                              >
+                                {unarchivingId === item.id ? "…" : "Unarchive"}
+                              </button>
+                            </td>
+                          ) : null}
                         </tr>
                       );
                     })}
@@ -310,6 +314,7 @@ export const ConsignmentsPage = () => {
                           <th>Packages</th>
                           <th>Observation</th>
                           <th>Product Description</th>
+                          {scope === "archived" ? <th>Actions</th> : null}
                         </tr>
                       </thead>
                       <tbody>
@@ -332,6 +337,19 @@ export const ConsignmentsPage = () => {
                               <td>{item.packagesRaw ?? "-"}</td>
                               <td>{item.observationRaw ?? "-"}</td>
                               <td>{item.productDescriptionRaw ?? "-"}</td>
+                              {scope === "archived" ? (
+                                <td>
+                                  <button
+                                    type="button"
+                                    className="management-btn management-btn-small"
+                                    onClick={() => handleUnarchive(item.id)}
+                                    disabled={unarchivingId === item.id}
+                                    title="Move back to Active"
+                                  >
+                                    {unarchivingId === item.id ? "…" : "Unarchive"}
+                                  </button>
+                                </td>
+                              ) : null}
                             </tr>
                           );
                         })}

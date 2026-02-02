@@ -66,6 +66,34 @@ function firstMatch(row: Record<string, unknown>, patterns: RegExp[]): string {
   return "";
 }
 
+/** PML ref pattern: digits-sep-digits (e.g. 618-41477155, 618/41477155, 618.41477155). */
+const PML_REF_PATTERN = /^\d+\s*[\-/.]\s*\d+$/;
+
+/** Normalize PML ref to a canonical form (e.g. 618-41477155). */
+function normalizePmlRef(s: string): string {
+  return s.trim().replace(/\s*[\-/.]\s*/, "-");
+}
+
+/** Resolve PML ref from a backoffice row; tries multiple column names so refs aren't missed. */
+function getPmlRef(row: BackofficeRow): string {
+  const direct = row["pml ref"] ?? row["pmlref"] ?? row["ref"] ?? row["pml ref no"] ?? row["reference"] ?? row["ref no"] ?? row["ref no."] ?? "";
+  if (typeof direct === "string" && direct.trim()) return normalizePmlRef(direct);
+  const byKey = firstMatch(row as Record<string, unknown>, [
+    /pml\s*ref|pmlref|^ref\s*no|consignment\s*id|reference\s*no|job\s*ref|consignment\s*ref/i,
+  ]);
+  if (byKey) return normalizePmlRef(byKey);
+  const recordId = row["_recordid"];
+  if (typeof recordId === "string" && recordId.trim() && PML_REF_PATTERN.test(recordId.trim())) {
+    return normalizePmlRef(recordId);
+  }
+  const dataRef = row["_dataref"];
+  if (typeof dataRef === "string" && dataRef.trim()) return normalizePmlRef(dataRef);
+  for (const val of Object.values(row)) {
+    if (typeof val === "string" && PML_REF_PATTERN.test(val.trim())) return normalizePmlRef(val);
+  }
+  return "";
+}
+
 /** Last resort: find any key containing quantity- or weight-like substring with a parseable number. */
 function scanAllKeysForNumber(
   row: Record<string, unknown>,
@@ -352,6 +380,10 @@ const extractRows = (
           record["_recordid"] = recordId;
         }
       }
+      const dataRef = $(cell).attr("data-ref") ?? $(cell).attr("data-id");
+      if (dataRef && typeof dataRef === "string" && /^\d+\s*[\-/.]\s*\d+$/.test(dataRef.trim())) {
+        record["_dataref"] = dataRef.trim();
+      }
     });
     rows.push(record);
   });
@@ -423,7 +455,7 @@ const buildNextPageUrl = (currentPageUrl: string, pageParam: string, currentPage
   }
 };
 
-const COMMON_PAGE_PARAMS = ["PageNum", "page", "p", "pg"]; // try these if PML_BACKOFFICE_PAGE_PARAM not set
+const COMMON_PAGE_PARAMS = ["PageNum", "page", "p", "pg", "Page", "pageNumber", "pagenum", "currentPage"]; // try these if PML_BACKOFFICE_PAGE_PARAM not set
 
 const looksLikeLogin = ($: cheerio.CheerioAPI): boolean => {
   return $("input[type='password']").length > 0;
@@ -599,10 +631,14 @@ export const fetchAndUpsertConsignments = async (options?: FetchAndUpsertOptions
   let upserted = 0;
   const now = new Date();
   const seenIds: string[] = [];
+  const skippedRows: BackofficeRow[] = [];
 
   for (const row of rows) {
-    const pmlRef = row["pml ref"] ?? "";
-    if (!pmlRef) continue;
+    const pmlRef = getPmlRef(row);
+    if (!pmlRef) {
+      skippedRows.push(row);
+      continue;
+    }
     seenIds.push(pmlRef);
 
     const customer = row["client"] ?? "";
@@ -694,6 +730,12 @@ export const fetchAndUpsertConsignments = async (options?: FetchAndUpsertOptions
       },
     });
     upserted += 1;
+  }
+
+  if (DEBUG && skippedRows.length > 0) {
+    const sample = skippedRows[0];
+    const keys = Object.keys(sample).filter((k) => !k.startsWith("_"));
+    console.debug(`[backoffice] skipped ${skippedRows.length} rows (no PML ref); sample row keys: ${keys.join(", ")}`);
   }
 
   // Archive consignments no longer on the dayboard, but never archive consignments

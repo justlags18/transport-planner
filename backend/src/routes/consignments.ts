@@ -191,6 +191,25 @@ consignmentsRouter.patch("/api/consignments/:id/delivery-location", async (req, 
   }
 });
 
+/** Unarchive a consignment so it appears on Active again (e.g. if it was archived by mistake). */
+consignmentsRouter.patch("/api/consignments/:id/unarchive", async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const c = await prisma.consignment.findUnique({ where: { id }, select: { id: true } });
+    if (!c) {
+      res.status(404).json({ ok: false, error: "Consignment not found" });
+      return;
+    }
+    await prisma.consignment.update({
+      where: { id },
+      data: { archivedAt: null },
+    });
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
 /**
  * Force refresh: run full backoffice scrape and archive consignments not on the dayboard.
  * Keeps today's consignments plus any assigned to a lorry (e.g. from yesterday). Use when you need to refresh earlier than the 6am run.
