@@ -87,6 +87,7 @@ const LorryColumnInner = memo(({ lorry, activeDragData = null, missingPalletsFal
   const percent = (used / capacity) * 100;
   const barColor = capacityBarColorClass(percent);
   const overCapacity = used > capacity;
+  const showBackloadButton = used > 26 && onMarkLorryAsBackload && lorry.assignments.length > 0;
 
   const draggedPallets = activeDragData != null ? (activeDragData.pallets > 0 ? activeDragData.pallets : missingPalletsFallback) : 0;
   const previewUsed = isOver && activeDragData != null ? used + draggedPallets : used;
@@ -129,19 +130,6 @@ const LorryColumnInner = memo(({ lorry, activeDragData = null, missingPalletsFal
           <span className="lorries-board-column-capacity-text">
             {used} / {capacity} pallets
           </span>
-          {overCapacity && onMarkLorryAsBackload && (
-            <button
-              type="button"
-              className="lorries-board-column-backload-btn"
-              onClick={(e) => {
-                e.stopPropagation();
-                onMarkLorryAsBackload(lorry.id);
-              }}
-              title="Mark all jobs on this truck as backload/reload"
-            >
-              Mark as backload
-            </button>
-          )}
           {showPreview && (
             <span className="lorries-board-column-capacity-preview" title={wouldExceedCapacity ? "Over capacity" : undefined}>
               → {previewUsed} (preview)
@@ -165,6 +153,19 @@ const LorryColumnInner = memo(({ lorry, activeDragData = null, missingPalletsFal
             </span>
           )}
         </div>
+        {showBackloadButton && (
+          <button
+            type="button"
+            className="lorries-board-column-backload-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              onMarkLorryAsBackload(lorry.id);
+            }}
+            title="Mark all jobs on this truck as backload/reload"
+          >
+            Mark as backload
+          </button>
+        )}
       </div>
 
       <div className="lorries-board-column-dropzone">

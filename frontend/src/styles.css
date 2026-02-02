@@ -1427,21 +1427,30 @@ button:disabled {
 }
 
 .lorries-board-column-backload-btn {
-  flex-shrink: 0;
-  padding: 4px 8px;
-  font-size: 0.7rem;
-  font-weight: 600;
-  border-radius: 4px;
-  border: 1px solid rgba(251, 191, 36, 0.6);
-  background: rgba(251, 191, 36, 0.25);
-  color: #fff;
+  width: 100%;
+  margin-top: 10px;
+  padding: 10px 14px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-radius: 6px;
+  border: 2px solid #f59e0b;
+  background: linear-gradient(180deg, #fbbf24 0%, #f59e0b 100%);
+  color: #1e293b;
   cursor: pointer;
   white-space: nowrap;
-  margin-left: 8px;
+  box-shadow: 0 2px 6px rgba(245, 158, 11, 0.4);
+  transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
 }
 
 .lorries-board-column-backload-btn:hover {
-  background: rgba(251, 191, 36, 0.4);
+  background: linear-gradient(180deg, #fcd34d 0%, #fbbf24 100%);
+  box-shadow: 0 3px 10px rgba(245, 158, 11, 0.5);
+}
+
+.lorries-board-column-backload-btn:active {
+  transform: scale(0.98);
 }
 
 .lorries-board-assignment-missing-chip {
