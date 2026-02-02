@@ -738,9 +738,9 @@ export const fetchAndUpsertConsignments = async (options?: FetchAndUpsertOptions
     console.debug(`[backoffice] skipped ${skippedRows.length} rows (no PML ref); sample row keys: ${keys.join(", ")}`);
   }
 
-  // Archive consignments no longer on the dayboard, but never archive consignments
-  // that are assigned to a lorry (they stay on the transport plan).
-  // Runs at 6am daily by default, or when forceArchive is true (e.g. Force refresh button).
+  // Archive only consignments not seen today (lastSeenAt < start of today) and not assigned.
+  // This way dayboard jobs stay on Active even if the scrape missed them this run; we never
+  // archive anything that was seen today.
   const archiveOnEveryScrape = process.env.PML_ARCHIVE_ON_EVERY_SCRAPE === "1";
   const archiveHour = process.env.PML_ARCHIVE_HOUR != null ? parseInt(process.env.PML_ARCHIVE_HOUR, 10) : 6;
   const shouldArchive =
@@ -748,17 +748,18 @@ export const fetchAndUpsertConsignments = async (options?: FetchAndUpsertOptions
     archiveOnEveryScrape ||
     (typeof archiveHour === "number" && !Number.isNaN(archiveHour) && now.getHours() === archiveHour);
 
-  if (shouldArchive && seenIds.length > 0) {
+  if (shouldArchive) {
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
     const assigned = await prisma.assignment.findMany({
       select: { consignmentId: true },
       distinct: ["consignmentId"],
     });
     const assignedIds = assigned.map((a) => a.consignmentId);
-    const idsToKeep = new Set([...seenIds, ...assignedIds]);
     const toArchive = await prisma.consignment.findMany({
       where: {
         archivedAt: null,
-        id: { notIn: Array.from(idsToKeep) },
+        lastSeenAt: { lt: startOfToday },
+        id: { notIn: assignedIds },
       },
       select: { id: true },
     });
@@ -768,7 +769,7 @@ export const fetchAndUpsertConsignments = async (options?: FetchAndUpsertOptions
         data: { archivedAt: now },
       });
       if (DEBUG) {
-        console.debug(`[backoffice] archived ${toArchive.length} consignments not on dayboard (kept ${assignedIds.length} assigned)`);
+        console.debug(`[backoffice] archived ${toArchive.length} consignments not seen today (kept ${assignedIds.length} assigned)`);
       }
     }
   }
