@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { Prisma, type Consignment } from "@prisma/client";
 import { prisma } from "../db";
-import { computePalletsFromRow } from "../services/backofficeScraper";
+import { computePalletsFromRow, fetchAndUpsertConsignments } from "../services/backofficeScraper";
 
 export const consignmentsRouter = Router();
 
@@ -176,6 +176,19 @@ consignmentsRouter.patch("/api/consignments/:id/delivery-location", async (req, 
       },
     });
     res.json({ ok: true, consignment: updated });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * Force refresh: run full backoffice scrape and archive consignments not on the dayboard.
+ * Keeps today's consignments plus any assigned to a lorry (e.g. from yesterday). Use when you need to refresh earlier than the 6am run.
+ */
+consignmentsRouter.post("/api/consignments/refresh", async (_req, res, next) => {
+  try {
+    const processed = await fetchAndUpsertConsignments({ forceArchive: true });
+    res.json({ ok: true, processed });
   } catch (err) {
     next(err);
   }

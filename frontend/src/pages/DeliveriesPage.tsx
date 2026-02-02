@@ -60,6 +60,7 @@ export const DeliveriesPage = () => {
     sampleRow?: Record<string, string>;
   } | null>(null);
   const [backfilling, setBackfilling] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -404,6 +405,22 @@ export const DeliveriesPage = () => {
     }
   }, [refreshData]);
 
+  const handleForceRefresh = useCallback(async () => {
+    setRefreshing(true);
+    setError(null);
+    try {
+      const res = await apiPost<{ ok: boolean; processed?: number }>("/api/consignments/refresh", {});
+      await refreshData();
+      if (res?.processed != null) {
+        setBackfillResult(null);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Force refresh failed");
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refreshData]);
+
   const activeDragDataForBoard = useMemo(
     () =>
       activeDragData
@@ -430,7 +447,7 @@ export const DeliveriesPage = () => {
         ) : null}
 
         <p className="management-intro">
-          Plan transport for the chosen date. Jobs shown are &quot;We deliver&quot; and &quot;We collect (from site)&quot; (configured in Management → Customer Pref). Filter by delivery location, then drag jobs onto lorries. Use &quot;Backload&quot; to mark a reload run; when a truck is over capacity you can &quot;Mark as backload&quot; for the whole load.
+          Plan transport for the chosen date. Jobs shown are &quot;We deliver&quot; and &quot;We collect (from site)&quot; (configured in Management → Customer Pref). The consignments board archives at 6am daily (today&apos;s jobs plus any still on lorries). Use &quot;Force refresh&quot; to run a full scrape and archive now. Filter by delivery location, then drag jobs onto lorries. Use &quot;Backload&quot; to mark a reload run; when a truck is over capacity you can &quot;Mark as backload&quot; for the whole load.
         </p>
 
         <section className="management-section deliveries-board-filter">
@@ -473,6 +490,15 @@ export const DeliveriesPage = () => {
               title="Recompute pallets from backoffice data for all consignments with missing pallets"
             >
               {backfilling ? "Backfilling…" : "Backfill pallets"}
+            </button>
+            <button
+              type="button"
+              className="management-btn management-btn-small management-btn-primary"
+              onClick={handleForceRefresh}
+              disabled={refreshing}
+              title="Run full backoffice scrape and archive now (consignments board refreshes at 6am daily)"
+            >
+              {refreshing ? "Refreshing…" : "Force refresh"}
             </button>
           </form>
         </section>

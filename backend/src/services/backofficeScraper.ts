@@ -415,7 +415,9 @@ const performLogin = async (client: ReturnType<typeof wrapper>, html: string) =>
   }
 };
 
-export const fetchAndUpsertConsignments = async (): Promise<number> => {
+export type FetchAndUpsertOptions = { forceArchive?: boolean };
+
+export const fetchAndUpsertConsignments = async (options?: FetchAndUpsertOptions): Promise<number> => {
   const jar = new CookieJar();
   const client = wrapper(
     axios.create({
@@ -579,9 +581,13 @@ export const fetchAndUpsertConsignments = async (): Promise<number> => {
 
   // Archive consignments no longer on the dayboard, but never archive consignments
   // that are assigned to a lorry (they stay on the transport plan).
+  // Runs at 6am daily by default, or when forceArchive is true (e.g. Force refresh button).
   const archiveOnEveryScrape = process.env.PML_ARCHIVE_ON_EVERY_SCRAPE === "1";
-  const archiveHour = process.env.PML_ARCHIVE_HOUR != null ? parseInt(process.env.PML_ARCHIVE_HOUR, 10) : 2;
-  const shouldArchive = archiveOnEveryScrape || (typeof archiveHour === "number" && !Number.isNaN(archiveHour) && now.getHours() === archiveHour);
+  const archiveHour = process.env.PML_ARCHIVE_HOUR != null ? parseInt(process.env.PML_ARCHIVE_HOUR, 10) : 6;
+  const shouldArchive =
+    options?.forceArchive === true ||
+    archiveOnEveryScrape ||
+    (typeof archiveHour === "number" && !Number.isNaN(archiveHour) && now.getHours() === archiveHour);
 
   if (shouldArchive && seenIds.length > 0) {
     const assigned = await prisma.assignment.findMany({
