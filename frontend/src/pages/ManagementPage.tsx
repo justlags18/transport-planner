@@ -86,7 +86,7 @@ export const ManagementPage = () => {
   const { user: currentUser } = useAuth();
   const role = currentUser?.role ?? "Clerk";
   const showUsersTrucks = canAccessUsersOrTrucks(role);
-  const [activeTab, setActiveTab] = useState<"users" | "trucks" | "customer-pref" | "delivery-locations">("customer-pref");
+  const [activeTab, setActiveTab] = useState<"consignments" | "users" | "trucks" | "customer-pref" | "delivery-locations">("customer-pref");
 
   // Users state
   const [users, setUsers] = useState<UserRow[]>([]);
@@ -150,6 +150,10 @@ export const ManagementPage = () => {
   const [editLocationDestinationKey, setEditLocationDestinationKey] = useState("");
   const [editLocationNotes, setEditLocationNotes] = useState("");
   const [deletingLocationId, setDeletingLocationId] = useState<string | null>(null);
+
+  // Consignments (force refresh / archive old)
+  const [consignmentsRefreshing, setConsignmentsRefreshing] = useState(false);
+  const [consignmentsArchiving, setConsignmentsArchiving] = useState(false);
 
   const [error, setError] = useState("");
 
@@ -228,6 +232,33 @@ export const ManagementPage = () => {
       setError(e instanceof Error ? e.message : "Failed to load client list");
     } finally {
       setAvailableCustomersLoading(false);
+    }
+  }, []);
+
+  const handleConsignmentsRefresh = useCallback(async () => {
+    setConsignmentsRefreshing(true);
+    setError("");
+    try {
+      await apiPost<{ ok: boolean; processed?: number }>("/api/consignments/refresh", {});
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Force refresh failed");
+    } finally {
+      setConsignmentsRefreshing(false);
+    }
+  }, []);
+
+  const handleArchiveOldConsignments = useCallback(async () => {
+    setConsignmentsArchiving(true);
+    setError("");
+    try {
+      const res = await apiPost<{ ok: boolean; archived?: number }>("/api/consignments/archive-old", {});
+      if (res?.archived != null && res.archived > 0) {
+        setError("");
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Archive old consignments failed");
+    } finally {
+      setConsignmentsArchiving(false);
     }
   }, []);
 
@@ -608,6 +639,13 @@ export const ManagementPage = () => {
       <nav className="management-tabs" aria-label="Management sections">
         <button
           type="button"
+          className={`management-tab${activeTab === "consignments" ? " management-tab--active" : ""}`}
+          onClick={() => setActiveTab("consignments")}
+        >
+          Consignments
+        </button>
+        <button
+          type="button"
           className={`management-tab${activeTab === "customer-pref" ? " management-tab--active" : ""}`}
           onClick={() => setActiveTab("customer-pref")}
         >
@@ -644,6 +682,37 @@ export const ManagementPage = () => {
         <div className="management-error" role="alert">
           {error}
         </div>
+      )}
+
+      {activeTab === "consignments" && (
+        <>
+          <p className="management-intro">
+            Force refresh runs a full backoffice scrape and archives consignments not on the dayboard (keeps today&apos;s plus any assigned to a lorry). Archive old consignments archives consignments not seen since before today without running a scrape. The board also auto-archives at 6am daily.
+          </p>
+          <section className="management-section">
+            <h3 className="management-section-title">Consignments data</h3>
+            <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", alignItems: "center" }}>
+              <button
+                type="button"
+                className="management-btn management-btn-small management-btn-primary"
+                onClick={handleConsignmentsRefresh}
+                disabled={consignmentsRefreshing}
+                title="Run full backoffice scrape and archive now"
+              >
+                {consignmentsRefreshing ? "Refreshing…" : "Force refresh"}
+              </button>
+              <button
+                type="button"
+                className="management-btn management-btn-small"
+                onClick={handleArchiveOldConsignments}
+                disabled={consignmentsArchiving}
+                title="Archive consignments not seen since before today (not assigned to a lorry)"
+              >
+                {consignmentsArchiving ? "Archiving…" : "Archive old consignments"}
+              </button>
+            </div>
+          </section>
+        </>
       )}
 
       {activeTab === "users" && (

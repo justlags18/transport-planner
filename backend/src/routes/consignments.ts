@@ -195,6 +195,39 @@ consignmentsRouter.post("/api/consignments/refresh", async (_req, res, next) => 
 });
 
 /**
+ * Archive old consignments: archive consignments not seen since before today (lastSeenAt < start of today)
+ * and not assigned to any lorry. Does not run a scrape; use Force refresh to scrape first if needed.
+ */
+consignmentsRouter.post("/api/consignments/archive-old", async (_req, res, next) => {
+  try {
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+    const assigned = await prisma.assignment.findMany({
+      select: { consignmentId: true },
+      distinct: ["consignmentId"],
+    });
+    const assignedIds = assigned.map((a) => a.consignmentId);
+    const toArchive = await prisma.consignment.findMany({
+      where: {
+        archivedAt: null,
+        lastSeenAt: { lt: startOfToday },
+        id: { notIn: assignedIds },
+      },
+      select: { id: true },
+    });
+    if (toArchive.length > 0) {
+      await prisma.consignment.updateMany({
+        where: { id: { in: toArchive.map((c) => c.id) } },
+        data: { archivedAt: now },
+      });
+    }
+    res.json({ ok: true, archived: toArchive.length });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
  * Backfill palletsFromSite from rawJson for all consignments that have missing pallets.
  * Call once (e.g. after deploy) to persist computed pallets for every consignment that has rawJson.
  * Returns counts so you can see how many were fixed vs had no rawJson vs compute returned null.
