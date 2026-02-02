@@ -10,6 +10,7 @@ type ConsignmentDTO = Omit<Consignment, "rawJson">;
 consignmentsRouter.get("/api/consignments", async (req, res, next) => {
   try {
     const activeParam = typeof req.query.active === "string" ? req.query.active : undefined;
+    const archivedParam = typeof req.query.archived === "string" ? req.query.archived : undefined;
     const searchParam = typeof req.query.search === "string" ? req.query.search.trim() : "";
     const dateParam = typeof req.query.date === "string" ? req.query.date.trim() : "";
     const deliveryOnlyParam = req.query.deliveryOnly === "1";
@@ -18,6 +19,8 @@ consignmentsRouter.get("/api/consignments", async (req, res, next) => {
 
     if (activeParam === "1") {
       andFilters.push({ archivedAt: null });
+    } else if (archivedParam === "1") {
+      andFilters.push({ archivedAt: { not: null } });
     }
 
     if (deliveryOnlyParam) {

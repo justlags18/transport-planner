@@ -367,6 +367,47 @@ const pickTable = ($: cheerio.CheerioAPI): cheerio.Cheerio<any> | null => {
   return match.length ? match : $(tables.get(0));
 };
 
+/** Find the next pagination URL from the current page, or null if none. */
+const getNextPageUrl = ($: cheerio.CheerioAPI, currentPageUrl: string): string | null => {
+  const base = currentPageUrl;
+  // rel="next"
+  const relNext = $('a[rel="next"]').first().attr("href");
+  if (relNext && relNext.trim() && !relNext.startsWith("#")) {
+    try {
+      const nextUrl = new URL(relNext.trim(), base).toString();
+      if (nextUrl !== base) return nextUrl;
+    } catch {
+      // ignore
+    }
+  }
+  // Link text "Next", ">", "»", or "next page"
+  const candidates = $("a[href]").filter((_, el) => {
+    const text = $(el).text().replace(/\s+/g, " ").trim().toLowerCase();
+    const href = $(el).attr("href") ?? "";
+    if (!href || href.startsWith("#") || href.startsWith("javascript:")) return false;
+    return (
+      text === "next" ||
+      text === ">" ||
+      text === "»" ||
+      text === "next page" ||
+      text === "page next" ||
+      /^next\s*$/i.test(text)
+    );
+  });
+  if (candidates.length > 0) {
+    const href = candidates.first().attr("href")?.trim();
+    if (href) {
+      try {
+        const nextUrl = new URL(href, base).toString();
+        if (nextUrl !== base) return nextUrl;
+      } catch {
+        // ignore
+      }
+    }
+  }
+  return null;
+};
+
 const looksLikeLogin = ($: cheerio.CheerioAPI): boolean => {
   return $("input[type='password']").length > 0;
 };
@@ -446,35 +487,44 @@ export const fetchAndUpsertConsignments = async (options?: FetchAndUpsertOptions
 
   const rows: BackofficeRow[] = [];
   for (const url of urls) {
-    const dataRes = await client.get(url);
-    const html = dataRes.data as string;
-    const listingPageUrl =
-      dataRes.request?.res?.responseUrl
-      ?? dataRes.config?.url
-      ?? url;
-    const $ = cheerio.load(html);
-    const table = pickTable($);
-    if (!table) {
-      continue;
-    }
-    const recordIds = $("td[data-id='flightinfo'][data-recordid]")
-      .map((_, el) => $(el).attr("data-recordid") ?? "")
-      .get()
-      .filter(Boolean);
-    if (DEBUG) {
-      console.debug(`[backoffice] flight record IDs=${recordIds.length}`);
-      console.debug(`[backoffice] flight record IDs sample=${recordIds.slice(0, 5).join(",")}`);
-    }
-    const pageRows = extractRows(table, $);
-    const flightResults = await fetchFlightInfoResults(client, listingPageUrl, recordIds);
-    const etaMap = new Map(flightResults.map((result) => [result.recordid, result.eta]));
-    for (const row of pageRows) {
-      const recordId = row["_recordid"];
-      if (recordId && etaMap.has(recordId)) {
-        row["eta"] = etaMap.get(recordId) ?? row["eta"];
+    let pageUrl: string | null = url;
+    while (pageUrl) {
+      const dataRes = await client.get(pageUrl);
+      const html = dataRes.data as string;
+      const listingPageUrl =
+        dataRes.request?.res?.responseUrl
+        ?? dataRes.config?.url
+        ?? pageUrl;
+      const $ = cheerio.load(html);
+      const table = pickTable($);
+      if (!table) {
+        break;
+      }
+      const recordIds = $("td[data-id='flightinfo'][data-recordid]")
+        .map((_, el) => $(el).attr("data-recordid") ?? "")
+        .get()
+        .filter(Boolean);
+      if (DEBUG) {
+        console.debug(`[backoffice] page ${listingPageUrl} flight record IDs=${recordIds.length}`);
+      }
+      const pageRows = extractRows(table, $);
+      const flightResults = await fetchFlightInfoResults(client, listingPageUrl, recordIds);
+      const etaMap = new Map(flightResults.map((result) => [result.recordid, result.eta]));
+      for (const row of pageRows) {
+        const recordId = row["_recordid"];
+        if (recordId && etaMap.has(recordId)) {
+          row["eta"] = etaMap.get(recordId) ?? row["eta"];
+        }
+      }
+      rows.push(...pageRows);
+      pageUrl = getNextPageUrl($, listingPageUrl);
+      if (DEBUG && pageUrl) {
+        console.debug(`[backoffice] following next page: ${pageUrl}`);
       }
     }
-    rows.push(...pageRows);
+  }
+  if (DEBUG) {
+    console.debug(`[backoffice] total rows scraped: ${rows.length}`);
   }
   if (!rows.length) {
     throw new Error("Could not find consignments table");

@@ -55,7 +55,7 @@ export const ConsignmentsPage = () => {
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [dateFilter, setDateFilter] = useState("");
-  const [activeOnly, setActiveOnly] = useState(true);
+  const [scope, setScope] = useState<"active" | "archived">("active");
 
   useEffect(() => {
     let active = true;
@@ -64,7 +64,8 @@ export const ConsignmentsPage = () => {
       setError("");
       try {
         const params = new URLSearchParams();
-        if (activeOnly) params.set("active", "1");
+        if (scope === "active") params.set("active", "1");
+        else if (scope === "archived") params.set("archived", "1");
         if (search.trim()) params.set("search", search.trim());
         if (dateFilter) params.set("date", dateFilter);
         const res = await apiGet<ConsignmentResponse>(`/api/consignments?${params.toString()}`);
@@ -81,7 +82,7 @@ export const ConsignmentsPage = () => {
     return () => {
       active = false;
     };
-  }, [activeOnly, search, dateFilter]);
+  }, [scope, search, dateFilter]);
 
   const toEtaMillis = (value: string | null) => {
     if (!value) return Number.POSITIVE_INFINITY;
@@ -163,10 +164,8 @@ export const ConsignmentsPage = () => {
             <span className="consignments-kpi-value">{items.length}</span>
           </div>
           <div className="consignments-kpi">
-            <span className="consignments-kpi-label">Active</span>
-            <span className="consignments-kpi-value">
-              {items.filter((item) => !item.archivedAt).length}
-            </span>
+            <span className="consignments-kpi-label">{scope === "archived" ? "Archived" : "Active"}</span>
+            <span className="consignments-kpi-value">{items.length}</span>
           </div>
           <div className="consignments-kpi">
             <span className="consignments-kpi-label">Last Seen</span>
@@ -199,11 +198,11 @@ export const ConsignmentsPage = () => {
             Scope
             <select
               className="management-select"
-              value={activeOnly ? "active" : "all"}
-              onChange={(event) => setActiveOnly(event.target.value === "active")}
+              value={scope}
+              onChange={(event) => setScope(event.target.value === "archived" ? "archived" : "active")}
             >
-              <option value="active">Active only</option>
-              <option value="all">All</option>
+              <option value="active">Active</option>
+              <option value="archived">Archived</option>
             </select>
           </label>
         </div>
