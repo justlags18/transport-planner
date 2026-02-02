@@ -96,6 +96,7 @@ type ScrapeLog = {
 export const ManagementPage = () => {
   const { user: currentUser } = useAuth();
   const role = currentUser?.role ?? "Clerk";
+  const isDeveloper = currentUser?.role === "Developer";
   const showUsersTrucks = canAccessUsersOrTrucks(role);
   const [activeTab, setActiveTab] = useState<"consignments" | "users" | "trucks" | "customer-pref" | "delivery-locations">("customer-pref");
 
@@ -174,7 +175,6 @@ export const ManagementPage = () => {
 
   const [error, setError] = useState("");
 
-  const isDeveloper = currentUser?.role === "Developer";
   const canSetDeveloperRole = canMakeDeveloper(currentUser?.role ?? "Clerk");
   const availableRoles = canSetDeveloperRole ? ROLES : ROLES.filter((r) => r !== "Developer");
 
