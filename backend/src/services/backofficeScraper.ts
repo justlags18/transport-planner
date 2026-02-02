@@ -410,19 +410,20 @@ const getNextPageUrl = ($: cheerio.CheerioAPI, currentPageUrl: string): string |
   return null;
 };
 
-/** Build URL for next page by incrementing numeric page param (e.g. page=2). Returns null if not configured. */
-const getNextPageUrlByParam = (currentPageUrl: string, currentPageNum: number): string | null => {
-  if (!PAGE_PARAM.trim()) return null;
+/** Build URL for next page by incrementing numeric page param (e.g. page=2). */
+const buildNextPageUrl = (currentPageUrl: string, pageParam: string, currentPageNum: number): string | null => {
   const nextNum = currentPageNum + 1;
   if (nextNum > MAX_PAGES) return null;
   try {
     const u = new URL(currentPageUrl);
-    u.searchParams.set(PAGE_PARAM.trim(), String(nextNum));
+    u.searchParams.set(pageParam, String(nextNum));
     return u.toString();
   } catch {
     return null;
   }
 };
+
+const COMMON_PAGE_PARAMS = ["PageNum", "page", "p", "pg"]; // try these if PML_BACKOFFICE_PAGE_PARAM not set
 
 const looksLikeLogin = ($: cheerio.CheerioAPI): boolean => {
   return $("input[type='password']").length > 0;
@@ -504,6 +505,7 @@ export const fetchAndUpsertConsignments = async (options?: FetchAndUpsertOptions
   const rows: BackofficeRow[] = [];
   for (const url of urls) {
     let pageUrl: string | null = url;
+    let detectedPageParam: string | null = PAGE_PARAM.trim() || null;
     while (pageUrl) {
       const dataRes = await client.get(pageUrl);
       const html = dataRes.data as string;
@@ -534,14 +536,53 @@ export const fetchAndUpsertConsignments = async (options?: FetchAndUpsertOptions
       }
       rows.push(...pageRows);
       pageUrl = getNextPageUrl($, listingPageUrl);
-      if (!pageUrl && PAGE_PARAM.trim()) {
+      if (!pageUrl && detectedPageParam) {
         try {
           const u = new URL(listingPageUrl);
-          const val = u.searchParams.get(PAGE_PARAM.trim());
+          const val = u.searchParams.get(detectedPageParam);
           const currentPage = val ? parseInt(val, 10) : 1;
-          pageUrl = getNextPageUrlByParam(listingPageUrl, currentPage);
+          pageUrl = buildNextPageUrl(listingPageUrl, detectedPageParam, currentPage);
         } catch {
           // ignore
+        }
+      }
+      if (!pageUrl && !detectedPageParam) {
+        for (const param of COMMON_PAGE_PARAMS) {
+          const nextUrl = buildNextPageUrl(listingPageUrl, param, 1);
+          if (!nextUrl) continue;
+          try {
+            const nextRes = await client.get(nextUrl);
+            const nextHtml = nextRes.data as string;
+            const nextListingUrl =
+              nextRes.request?.res?.responseUrl ?? nextRes.config?.url ?? nextUrl;
+            const $next = cheerio.load(nextHtml);
+            const nextTable = pickTable($next);
+            if (!nextTable) continue;
+            const nextRecordIds = $next("td[data-id='flightinfo'][data-recordid]")
+              .map((_, el) => $next(el).attr("data-recordid") ?? "")
+              .get()
+              .filter(Boolean);
+            const nextPageRows = extractRows(nextTable, $next);
+            const nextFlightResults = await fetchFlightInfoResults(client, nextListingUrl, nextRecordIds);
+            const nextEtaMap = new Map(nextFlightResults.map((r) => [r.recordid, r.eta]));
+            for (const row of nextPageRows) {
+              const recordId = row["_recordid"];
+              if (recordId && nextEtaMap.has(recordId)) {
+                row["eta"] = nextEtaMap.get(recordId) ?? row["eta"];
+              }
+            }
+            if (nextPageRows.length > 0) {
+              rows.push(...nextPageRows);
+              detectedPageParam = param;
+              pageUrl = buildNextPageUrl(nextListingUrl, param, 2);
+              if (DEBUG) {
+                console.debug(`[backoffice] detected page param "${param}", got ${nextPageRows.length} rows, following to page 3`);
+              }
+            }
+          } catch {
+            // ignore and try next param
+          }
+          if (pageUrl) break;
         }
       }
       if (DEBUG && pageUrl) {
