@@ -56,6 +56,7 @@ export const ConsignmentsPage = () => {
   const [search, setSearch] = useState("");
   const [dateFilter, setDateFilter] = useState("");
   const [scope, setScope] = useState<"active" | "archived">("active");
+  const [archivedOnFilter, setArchivedOnFilter] = useState(""); // YYYY-MM-DD: when scope is archived, filter by archived-on date
 
   useEffect(() => {
     let active = true;
@@ -65,7 +66,10 @@ export const ConsignmentsPage = () => {
       try {
         const params = new URLSearchParams();
         if (scope === "active") params.set("active", "1");
-        else if (scope === "archived") params.set("archived", "1");
+        else if (scope === "archived") {
+          params.set("archived", "1");
+          if (archivedOnFilter) params.set("archivedOn", archivedOnFilter);
+        }
         if (search.trim()) params.set("search", search.trim());
         if (dateFilter) params.set("date", dateFilter);
         const res = await apiGet<ConsignmentResponse>(`/api/consignments?${params.toString()}`);
@@ -82,7 +86,7 @@ export const ConsignmentsPage = () => {
     return () => {
       active = false;
     };
-  }, [scope, search, dateFilter]);
+  }, [scope, search, dateFilter, archivedOnFilter]);
 
   const toEtaMillis = (value: string | null) => {
     if (!value) return Number.POSITIVE_INFINITY;
@@ -205,6 +209,18 @@ export const ConsignmentsPage = () => {
               <option value="archived">Archived</option>
             </select>
           </label>
+          {scope === "archived" && (
+            <label>
+              Archived on date
+              <input
+                className="management-input"
+                type="date"
+                value={archivedOnFilter}
+                onChange={(e) => setArchivedOnFilter(e.target.value)}
+                title="Show only consignments archived on this date (leave empty for all archived)"
+              />
+            </label>
+          )}
         </div>
 
         {error ? (

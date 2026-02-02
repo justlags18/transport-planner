@@ -687,7 +687,7 @@ export const ManagementPage = () => {
       {activeTab === "consignments" && (
         <>
           <p className="management-intro">
-            Force refresh runs a full backoffice scrape and archives consignments not on the dayboard (keeps today&apos;s plus any assigned to a lorry). Archive old consignments archives consignments not seen since before today without running a scrape. The board also auto-archives at 6am daily.
+            Force refresh runs a full backoffice scrape and archives consignments not on the dayboard (keeps today&apos;s plus any assigned to a lorry). Archive old consignments archives consignments not seen since before today without running a scrape. The board also auto-archives at 6am daily. If Active shows fewer jobs than the backoffice, set env PML_BACKOFFICE_PAGE_PARAM to the site&apos;s page param (e.g. page or PageNum) so the scraper fetches all pages.
           </p>
           <section className="management-section">
             <h3 className="management-section-title">Consignments data</h3>

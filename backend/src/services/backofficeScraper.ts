@@ -11,6 +11,8 @@ const LOGIN_URL = process.env.PML_BACKOFFICE_LOGIN_URL
   ?? "https://www.pmlconsignment.co.uk/backoffice/content/manager/index.asp";
 const DATA_URL = process.env.PML_BACKOFFICE_DATA_URL ?? LOGIN_URL;
 const DATA_URLS = process.env.PML_BACKOFFICE_DATA_URLS ?? "";
+const PAGE_PARAM = process.env.PML_BACKOFFICE_PAGE_PARAM ?? ""; // e.g. "page" or "PageNum" to try page=2,3,...
+const MAX_PAGES = Math.min(Math.max(parseInt(process.env.PML_BACKOFFICE_MAX_PAGES ?? "20", 10) || 20, 1), 100);
 const USERNAME = process.env.PML_BACKOFFICE_USER ?? "";
 const PASSWORD = process.env.PML_BACKOFFICE_PASS ?? "";
 const DEBUG = process.env.PML_BACKOFFICE_DEBUG === "1";
@@ -408,6 +410,20 @@ const getNextPageUrl = ($: cheerio.CheerioAPI, currentPageUrl: string): string |
   return null;
 };
 
+/** Build URL for next page by incrementing numeric page param (e.g. page=2). Returns null if not configured. */
+const getNextPageUrlByParam = (currentPageUrl: string, currentPageNum: number): string | null => {
+  if (!PAGE_PARAM.trim()) return null;
+  const nextNum = currentPageNum + 1;
+  if (nextNum > MAX_PAGES) return null;
+  try {
+    const u = new URL(currentPageUrl);
+    u.searchParams.set(PAGE_PARAM.trim(), String(nextNum));
+    return u.toString();
+  } catch {
+    return null;
+  }
+};
+
 const looksLikeLogin = ($: cheerio.CheerioAPI): boolean => {
   return $("input[type='password']").length > 0;
 };
@@ -518,6 +534,16 @@ export const fetchAndUpsertConsignments = async (options?: FetchAndUpsertOptions
       }
       rows.push(...pageRows);
       pageUrl = getNextPageUrl($, listingPageUrl);
+      if (!pageUrl && PAGE_PARAM.trim()) {
+        try {
+          const u = new URL(listingPageUrl);
+          const val = u.searchParams.get(PAGE_PARAM.trim());
+          const currentPage = val ? parseInt(val, 10) : 1;
+          pageUrl = getNextPageUrlByParam(listingPageUrl, currentPage);
+        } catch {
+          // ignore
+        }
+      }
       if (DEBUG && pageUrl) {
         console.debug(`[backoffice] following next page: ${pageUrl}`);
       }

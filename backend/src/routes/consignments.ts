@@ -11,6 +11,7 @@ consignmentsRouter.get("/api/consignments", async (req, res, next) => {
   try {
     const activeParam = typeof req.query.active === "string" ? req.query.active : undefined;
     const archivedParam = typeof req.query.archived === "string" ? req.query.archived : undefined;
+    const archivedOnParam = typeof req.query.archivedOn === "string" ? req.query.archivedOn.trim() : ""; // YYYY-MM-DD: show only consignments archived on this date
     const searchParam = typeof req.query.search === "string" ? req.query.search.trim() : "";
     const dateParam = typeof req.query.date === "string" ? req.query.date.trim() : "";
     const deliveryOnlyParam = req.query.deliveryOnly === "1";
@@ -21,6 +22,12 @@ consignmentsRouter.get("/api/consignments", async (req, res, next) => {
       andFilters.push({ archivedAt: null });
     } else if (archivedParam === "1") {
       andFilters.push({ archivedAt: { not: null } });
+      if (archivedOnParam) {
+        const start = new Date(archivedOnParam + "T00:00:00.000Z");
+        const end = new Date(start);
+        end.setUTCDate(end.getUTCDate() + 1);
+        andFilters.push({ archivedAt: { gte: start, lt: end } });
+      }
     }
 
     if (deliveryOnlyParam) {
