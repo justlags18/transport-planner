@@ -82,6 +82,17 @@ type UpdateCustomerPrefResponse = { ok: boolean; pref: CustomerPrefRow };
 type AvailableCustomer = { customerKey: string; displayName: string };
 type AvailableCustomersResponse = { ok: boolean; customers: AvailableCustomer[] };
 
+type ScrapeLog = {
+  timestamp: string;
+  totalRows: number;
+  upserted: number;
+  detectedPageParam: string | null;
+  nextPageCount: number;
+  skippedRows: number;
+  sampleSkippedKeys: string[];
+  errors: string[];
+};
+
 export const ManagementPage = () => {
   const { user: currentUser } = useAuth();
   const role = currentUser?.role ?? "Clerk";
@@ -154,6 +165,7 @@ export const ManagementPage = () => {
   // Consignments (force refresh / archive old)
   const [consignmentsRefreshing, setConsignmentsRefreshing] = useState(false);
   const [consignmentsArchiving, setConsignmentsArchiving] = useState(false);
+  const [scrapeLog, setScrapeLog] = useState<ScrapeLog | null>(null);
 
   const [error, setError] = useState("");
 
@@ -239,11 +251,22 @@ export const ManagementPage = () => {
     setConsignmentsRefreshing(true);
     setError("");
     try {
-      await apiPost<{ ok: boolean; processed?: number }>("/api/consignments/refresh", {});
+      const res = await apiPost<{ ok: boolean; processed?: number; debug?: ScrapeLog | null }>("/api/consignments/refresh", {});
+      if (res?.debug != null) setScrapeLog(res.debug);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Force refresh failed");
     } finally {
       setConsignmentsRefreshing(false);
+    }
+  }, []);
+
+  const loadScrapeLog = useCallback(async () => {
+    try {
+      const res = await apiGet<{ ok: boolean; log: ScrapeLog | null }>("/api/consignments/scrape-log");
+      if (res.ok && res.log != null) setScrapeLog(res.log);
+      else setScrapeLog(null);
+    } catch {
+      setScrapeLog(null);
     }
   }, []);
 
@@ -294,6 +317,10 @@ export const ManagementPage = () => {
   useEffect(() => {
     if (activeTab === "delivery-locations") loadDeliveryLocations();
   }, [activeTab, loadDeliveryLocations]);
+
+  useEffect(() => {
+    if (activeTab === "consignments" && isDeveloper) loadScrapeLog();
+  }, [activeTab, isDeveloper, loadScrapeLog]);
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -712,6 +739,47 @@ export const ManagementPage = () => {
               </button>
             </div>
           </section>
+          {isDeveloper && (
+            <section className="management-section developer-log-section">
+              <h3 className="management-section-title">Developer log (backoffice scrape)</h3>
+              <p className="management-muted" style={{ marginBottom: "0.5rem" }}>
+                Last run: total rows scraped, detected page param, skipped rows, errors. Run Force refresh to update.
+              </p>
+              <button
+                type="button"
+                className="management-btn management-btn-small"
+                onClick={loadScrapeLog}
+                title="Reload last scrape log"
+              >
+                Refresh log
+              </button>
+              {scrapeLog ? (
+                <div className="developer-log" style={{ marginTop: "0.75rem", fontFamily: "monospace", fontSize: "0.875rem", background: "var(--bg-muted, #f5f5f5)", padding: "0.75rem", borderRadius: "4px", overflow: "auto" }}>
+                  <div><strong>Timestamp:</strong> {scrapeLog.timestamp}</div>
+                  <div><strong>Total rows scraped:</strong> {scrapeLog.totalRows}</div>
+                  <div><strong>Upserted:</strong> {scrapeLog.upserted}</div>
+                  <div><strong>Detected page param:</strong> {scrapeLog.detectedPageParam ?? "(none)"}</div>
+                  <div><strong>Next page fetches:</strong> {scrapeLog.nextPageCount}</div>
+                  <div><strong>Skipped rows (no PML ref):</strong> {scrapeLog.skippedRows}</div>
+                  {scrapeLog.sampleSkippedKeys.length > 0 && (
+                    <div><strong>Sample skipped row keys:</strong> {scrapeLog.sampleSkippedKeys.join(", ")}</div>
+                  )}
+                  {scrapeLog.errors.length > 0 && (
+                    <div style={{ color: "var(--error, #c00)", marginTop: "0.5rem" }}>
+                      <strong>Errors:</strong>
+                      <ul style={{ margin: "0.25rem 0 0 1rem", padding: 0 }}>
+                        {scrapeLog.errors.map((err, i) => (
+                          <li key={i}>{err}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <p className="management-muted" style={{ marginTop: "0.75rem" }}>No scrape log yet. Run Force refresh to populate.</p>
+              )}
+            </section>
+          )}
         </>
       )}
 

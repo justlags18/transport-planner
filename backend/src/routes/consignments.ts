@@ -1,7 +1,8 @@
 import { Router } from "express";
 import { Prisma, type Consignment } from "@prisma/client";
 import { prisma } from "../db";
-import { computePalletsFromRow, fetchAndUpsertConsignments } from "../services/backofficeScraper";
+import { computePalletsFromRow, fetchAndUpsertConsignments, getLastScrapeLog } from "../services/backofficeScraper";
+import type { AuthRequest } from "../middleware/auth";
 
 export const consignmentsRouter = Router();
 
@@ -213,11 +214,32 @@ consignmentsRouter.patch("/api/consignments/:id/unarchive", async (req, res, nex
 /**
  * Force refresh: run full backoffice scrape and archive consignments not on the dayboard.
  * Keeps today's consignments plus any assigned to a lorry (e.g. from yesterday). Use when you need to refresh earlier than the 6am run.
+ * Developers get scrape debug info in the response.
  */
-consignmentsRouter.post("/api/consignments/refresh", async (_req, res, next) => {
+consignmentsRouter.post("/api/consignments/refresh", async (req: AuthRequest, res, next) => {
   try {
     const processed = await fetchAndUpsertConsignments({ forceArchive: true });
-    res.json({ ok: true, processed });
+    const payload: { ok: boolean; processed: number; debug?: ReturnType<typeof getLastScrapeLog> } = { ok: true, processed };
+    if (req.user?.role === "Developer") {
+      payload.debug = getLastScrapeLog();
+    }
+    res.json(payload);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * Last backoffice scrape log (total rows, detected page param, skipped, errors). Developer only.
+ */
+consignmentsRouter.get("/api/consignments/scrape-log", async (req: AuthRequest, res, next) => {
+  try {
+    if (req.user?.role !== "Developer") {
+      res.status(403).json({ ok: false, error: "Forbidden: Developer role required" });
+      return;
+    }
+    const log = getLastScrapeLog();
+    res.json({ ok: true, log: log ?? null });
   } catch (err) {
     next(err);
   }

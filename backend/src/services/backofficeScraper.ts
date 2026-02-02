@@ -507,7 +507,33 @@ const performLogin = async (client: ReturnType<typeof wrapper>, html: string) =>
 
 export type FetchAndUpsertOptions = { forceArchive?: boolean };
 
+/** Last scrape run info for developer debug panel (only exposed to Developer role). */
+export type ScrapeLog = {
+  timestamp: string;
+  totalRows: number;
+  upserted: number;
+  detectedPageParam: string | null;
+  nextPageCount: number;
+  skippedRows: number;
+  sampleSkippedKeys: string[];
+  errors: string[];
+};
+
+let lastScrapeLog: ScrapeLog | null = null;
+
+export function getLastScrapeLog(): ScrapeLog | null {
+  return lastScrapeLog;
+}
+
 export const fetchAndUpsertConsignments = async (options?: FetchAndUpsertOptions): Promise<number> => {
+  const logErrors: string[] = [];
+  const startedAt = new Date().toISOString();
+  let logDetectedPageParam: string | null = PAGE_PARAM.trim() || null;
+  let logNextPageCount = 0;
+  let rows: BackofficeRow[] = [];
+  let skippedRows: BackofficeRow[] = [];
+
+  try {
   const jar = new CookieJar();
   const client = wrapper(
     axios.create({
@@ -534,7 +560,7 @@ export const fetchAndUpsertConsignments = async (options?: FetchAndUpsertOptions
     urls.push(DATA_URL);
   }
 
-  const rows: BackofficeRow[] = [];
+  rows = [];
   for (const url of urls) {
     let pageUrl: string | null = url;
     let detectedPageParam: string | null = PAGE_PARAM.trim() || null;
@@ -606,6 +632,7 @@ export const fetchAndUpsertConsignments = async (options?: FetchAndUpsertOptions
             if (nextPageRows.length > 0) {
               rows.push(...nextPageRows);
               detectedPageParam = param;
+              logDetectedPageParam = param;
               pageUrl = buildNextPageUrl(nextListingUrl, param, 2);
               if (DEBUG) {
                 console.debug(`[backoffice] detected page param "${param}", got ${nextPageRows.length} rows, following to page 3`);
@@ -617,6 +644,7 @@ export const fetchAndUpsertConsignments = async (options?: FetchAndUpsertOptions
           if (pageUrl) break;
         }
       }
+      if (pageUrl) logNextPageCount += 1;
       if (DEBUG && pageUrl) {
         console.debug(`[backoffice] following next page: ${pageUrl}`);
       }
@@ -626,12 +654,24 @@ export const fetchAndUpsertConsignments = async (options?: FetchAndUpsertOptions
     console.debug(`[backoffice] total rows scraped: ${rows.length}`);
   }
   if (!rows.length) {
-    throw new Error("Could not find consignments table");
+    const msg = "Could not find consignments table";
+    logErrors.push(msg);
+    lastScrapeLog = {
+      timestamp: startedAt,
+      totalRows: 0,
+      upserted: 0,
+      detectedPageParam: logDetectedPageParam,
+      nextPageCount: logNextPageCount,
+      skippedRows: 0,
+      sampleSkippedKeys: [],
+      errors: logErrors,
+    };
+    throw new Error(msg);
   }
   let upserted = 0;
   const now = new Date();
   const seenIds: string[] = [];
-  const skippedRows: BackofficeRow[] = [];
+  skippedRows = [];
 
   for (const row of rows) {
     const pmlRef = getPmlRef(row);
@@ -738,6 +778,20 @@ export const fetchAndUpsertConsignments = async (options?: FetchAndUpsertOptions
     console.debug(`[backoffice] skipped ${skippedRows.length} rows (no PML ref); sample row keys: ${keys.join(", ")}`);
   }
 
+  const sampleSkippedKeys = skippedRows.length > 0
+    ? Object.keys(skippedRows[0]).filter((k) => !k.startsWith("_"))
+    : [];
+  lastScrapeLog = {
+    timestamp: startedAt,
+    totalRows: rows.length,
+    upserted,
+    detectedPageParam: logDetectedPageParam,
+    nextPageCount: logNextPageCount,
+    skippedRows: skippedRows.length,
+    sampleSkippedKeys,
+    errors: logErrors,
+  };
+
   // Archive only consignments not seen today (lastSeenAt < start of today) and not assigned.
   // This way dayboard jobs stay on Active even if the scrape missed them this run; we never
   // archive anything that was seen today.
@@ -775,4 +829,17 @@ export const fetchAndUpsertConsignments = async (options?: FetchAndUpsertOptions
   }
 
   return upserted;
+  } catch (err) {
+    lastScrapeLog = {
+      timestamp: startedAt,
+      totalRows: rows.length,
+      upserted: 0,
+      detectedPageParam: logDetectedPageParam,
+      nextPageCount: logNextPageCount,
+      skippedRows: skippedRows.length,
+      sampleSkippedKeys: [],
+      errors: [...logErrors, err instanceof Error ? err.message : String(err)],
+    };
+    throw err;
+  }
 };
