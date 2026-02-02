@@ -57,6 +57,28 @@ export const ConsignmentsPage = () => {
   const [dateFilter, setDateFilter] = useState("");
   const [scope, setScope] = useState<"active" | "archived">("active");
   const [archivedOnFilter, setArchivedOnFilter] = useState(""); // YYYY-MM-DD: when scope is archived, filter by archived-on date
+  const [unarchivingId, setUnarchivingId] = useState<string | null>(null);
+
+  const loadConsignments = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const params = new URLSearchParams();
+      if (scope === "active") params.set("active", "1");
+      else if (scope === "archived") {
+        params.set("archived", "1");
+        if (archivedOnFilter) params.set("archivedOn", archivedOnFilter);
+      }
+      if (search.trim()) params.set("search", search.trim());
+      if (dateFilter) params.set("date", dateFilter);
+      const res = await apiGet<ConsignmentResponse>(`/api/consignments?${params.toString()}`);
+      setItems(res.items ?? []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load consignments");
+    } finally {
+      setLoading(false);
+    }
+  }, [scope, search, dateFilter, archivedOnFilter]);
 
   useEffect(() => {
     loadConsignments();
