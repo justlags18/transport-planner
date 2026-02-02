@@ -247,13 +247,21 @@ export const ManagementPage = () => {
     }
   }, []);
 
+  const [scrapeLogError, setScrapeLogError] = useState<string | null>(null);
+
   const loadScrapeLog = useCallback(async () => {
+    setScrapeLogError(null);
     try {
-      const res = await apiGet<{ ok: boolean; log: ScrapeLog | null }>("/api/consignments/scrape-log");
-      if (res.ok && res.log != null) setScrapeLog(res.log);
-      else setScrapeLog(null);
-    } catch {
+      const res = await apiGet<{ ok: boolean; log: ScrapeLog | null; error?: string }>("/api/consignments/scrape-log");
+      if (res.ok && res.log != null) {
+        setScrapeLog(res.log);
+      } else {
+        setScrapeLog(null);
+        if (res.error) setScrapeLogError(res.error);
+      }
+    } catch (e) {
       setScrapeLog(null);
+      setScrapeLogError(e instanceof Error ? e.message : "Failed to load log");
     }
   }, []);
 
@@ -751,7 +759,7 @@ export const ManagementPage = () => {
             <section className="management-section developer-log-section">
               <h3 className="management-section-title">Developer log (backoffice scrape)</h3>
               <p className="management-muted" style={{ marginBottom: "0.5rem" }}>
-                Last run: total rows scraped, detected page param, skipped rows, errors. Run Force refresh to update.
+                Last run: total rows scraped, detected page param, skipped rows, errors. No filters—only the most recent run is stored. Run Force refresh, wait 30–60s, then click Refresh log. With multiple servers the log may live on another instance.
               </p>
               <button
                 type="button"
@@ -761,6 +769,9 @@ export const ManagementPage = () => {
               >
                 Refresh log
               </button>
+              {scrapeLogError ? (
+                <p className="management-error" style={{ marginTop: "0.75rem" }} role="alert">{scrapeLogError}</p>
+              ) : null}
               {scrapeLog ? (
                 <div className="developer-log" style={{ marginTop: "0.75rem", fontFamily: "monospace", fontSize: "0.875rem", background: "var(--bg-muted, #f5f5f5)", padding: "0.75rem", borderRadius: "4px", overflow: "auto" }}>
                   <div><strong>Timestamp:</strong> {scrapeLog.timestamp}</div>
@@ -783,9 +794,9 @@ export const ManagementPage = () => {
                     </div>
                   )}
                 </div>
-              ) : (
-                <p className="management-muted" style={{ marginTop: "0.75rem" }}>No scrape log yet. Run Force refresh to populate.</p>
-              )}
+              ) : !scrapeLogError ? (
+                <p className="management-muted" style={{ marginTop: "0.75rem" }}>No scrape log yet. Run Force refresh to start a scrape, wait 30–60s for it to finish, then click Refresh log.</p>
+              ) : null}
             </section>
           )}
         </>
