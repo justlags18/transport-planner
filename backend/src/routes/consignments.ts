@@ -79,15 +79,17 @@ consignmentsRouter.get("/api/consignments", async (req, res, next) => {
     const updates: { id: string; palletsFromSite: number }[] = [];
     const locationUpdates: { id: string; deliveryLocationId: string }[] = [];
     
-    // Fetch customer→location mappings for auto-assignment
+    // Fetch customer→location mappings for auto-assignment and customer→deliveryType for labels
     const customerPrefs = await prisma.customerPref.findMany({
-      where: { customerKey: { not: null }, deliveryType: "deliver" },
+      where: { customerKey: { not: null } },
       include: { locations: true },
     });
     const customerToLocations = new Map<string, string[]>();
+    const customerToDeliveryType = new Map<string, string>();
     for (const pref of customerPrefs) {
       if (pref.customerKey) {
         customerToLocations.set(pref.customerKey, pref.locations.map((l) => l.deliveryLocationId));
+        customerToDeliveryType.set(pref.customerKey, pref.deliveryType);
       }
     }
 
