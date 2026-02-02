@@ -99,6 +99,11 @@ export const ManagementPage = () => {
   const showUsersTrucks = canAccessUsersOrTrucks(role);
   const [activeTab, setActiveTab] = useState<"consignments" | "users" | "trucks" | "customer-pref" | "delivery-locations">("customer-pref");
 
+  // Consignments tab is Developer-only; if role changes away from Developer, switch off it
+  useEffect(() => {
+    if (activeTab === "consignments" && !isDeveloper) setActiveTab("customer-pref");
+  }, [activeTab, isDeveloper]);
+
   // Users state
   const [users, setUsers] = useState<UserRow[]>([]);
   const [usersLoading, setUsersLoading] = useState(true);
@@ -680,13 +685,15 @@ export const ManagementPage = () => {
       <h2 className="dashboard-page-title">Management</h2>
 
       <nav className="management-tabs" aria-label="Management sections">
-        <button
-          type="button"
-          className={`management-tab${activeTab === "consignments" ? " management-tab--active" : ""}`}
-          onClick={() => setActiveTab("consignments")}
-        >
-          Consignments
-        </button>
+        {isDeveloper && (
+          <button
+            type="button"
+            className={`management-tab${activeTab === "consignments" ? " management-tab--active" : ""}`}
+            onClick={() => setActiveTab("consignments")}
+          >
+            Consignments
+          </button>
+        )}
         <button
           type="button"
           className={`management-tab${activeTab === "customer-pref" ? " management-tab--active" : ""}`}
@@ -727,7 +734,7 @@ export const ManagementPage = () => {
         </div>
       )}
 
-      {activeTab === "consignments" && (
+      {activeTab === "consignments" && isDeveloper && (
         <>
           <p className="management-intro">
             Force refresh runs a full backoffice scrape and archives consignments not on the dayboard (keeps today&apos;s plus any assigned to a lorry). Archive old consignments archives consignments not seen since before today without running a scrape. The board also auto-archives at 6am daily. If Active shows fewer jobs than the backoffice, set env PML_BACKOFFICE_PAGE_PARAM to the site&apos;s page param (e.g. page or PageNum) so the scraper fetches all pages.

@@ -168,3 +168,17 @@ model CustomerPrefDeliveryLocation {
   @@id([customerPrefId, deliveryLocationId])
   @@index([deliveryLocationId])
 }
+
+// Single row (id = "latest") for developer backoffice scrape log; persisted so all instances see it.
+model ScrapeLogEntry {
+  id                 String   @id @default("latest")
+  timestamp          String
+  totalRows          Int
+  upserted           Int
+  detectedPageParam  String?
+  nextPageCount      Int
+  skippedRows        Int
+  sampleSkippedKeys  String   // JSON array
+  errors             String   // JSON array
+  updatedAt          DateTime @updatedAt
+}

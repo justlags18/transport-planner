@@ -16,6 +16,7 @@ type ConsignmentDTO = {
   lastSeenAt: string;
   archivedAt: string | null;
   createdAt: string;
+  isPlanned?: boolean;
 };
 
 type ConsignmentResponse = { items: ConsignmentDTO[] };
@@ -312,6 +313,7 @@ export const ConsignmentsPage = () => {
                   <summary className="consignments-group-summary">
                     <div className="consignments-group-main">
                       <span className="consignments-group-customer">{group.customer}</span>
+                      {group.items.some((i) => i.isPlanned) ? <span className="consignments-planned-badge">Planned</span> : null}
                       <span className="consignments-group-mawb">AWB: {group.mawb}</span>
                     </div>
                     <div className="consignments-group-meta">
@@ -352,7 +354,10 @@ export const ConsignmentsPage = () => {
                                   {isNew ? <span className="consignments-new">New</span> : null}
                                 </div>
                               </td>
-                              <td>{item.customerNameRaw ?? "-"}</td>
+                              <td>
+                                <span>{item.customerNameRaw ?? "-"}</span>
+                                {item.isPlanned ? <span className="consignments-planned-badge">Planned</span> : null}
+                              </td>
                               <td>{item.mawbRaw ?? "-"}</td>
                               <td>{item.hawbRaw ?? "-"}</td>
                               <td>{formatDateTime(item.etaIso)}</td>

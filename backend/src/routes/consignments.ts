@@ -85,6 +85,12 @@ consignmentsRouter.get("/api/consignments", async (req, res, next) => {
       },
     });
 
+    const assignedConsignmentIds = await prisma.assignment.findMany({
+      select: { consignmentId: true },
+      distinct: ["consignmentId"],
+    });
+    const plannedIds = new Set(assignedConsignmentIds.map((a) => a.consignmentId));
+
     // When palletsFromSite is missing, recompute from stored backoffice row and persist so DB is updated
     // Also auto-assign deliveryLocationId if customer has exactly one location and none is set
     const updates: { id: string; palletsFromSite: number }[] = [];
@@ -131,7 +137,8 @@ consignmentsRouter.get("/api/consignments", async (req, res, next) => {
       }
       
       const deliveryType = item.customerKey ? customerToDeliveryType.get(item.customerKey) ?? null : null;
-      return { ...rest, palletsFromSite, deliveryLocationId, deliveryType: deliveryType ?? undefined };
+      const isPlanned = plannedIds.has(item.id);
+      return { ...rest, palletsFromSite, deliveryLocationId, deliveryType: deliveryType ?? undefined, isPlanned };
     });
 
     // Persist computed pallets and auto-assigned locations
@@ -230,6 +237,7 @@ consignmentsRouter.post("/api/consignments/refresh", async (req: AuthRequest, re
 
 /**
  * Last backoffice scrape log (total rows, detected page param, skipped, errors). Developer only.
+ * Reads from DB so all instances see the same log.
  */
 consignmentsRouter.get("/api/consignments/scrape-log", async (req: AuthRequest, res, next) => {
   try {
@@ -237,8 +245,28 @@ consignmentsRouter.get("/api/consignments/scrape-log", async (req: AuthRequest, 
       res.status(403).json({ ok: false, error: "Forbidden: Developer role required" });
       return;
     }
-    const log = getLastScrapeLog();
-    res.json({ ok: true, log: log ?? null });
+    let row: { timestamp: string; totalRows: number; upserted: number; detectedPageParam: string | null; nextPageCount: number; skippedRows: number; sampleSkippedKeys: string; errors: string } | null = null;
+    try {
+      row = await prisma.scrapeLogEntry.findUnique({ where: { id: "latest" } });
+    } catch {
+      // Table may not exist yet (migration not run); fall back to in-memory
+    }
+    if (row) {
+      const log = {
+        timestamp: row.timestamp,
+        totalRows: row.totalRows,
+        upserted: row.upserted,
+        detectedPageParam: row.detectedPageParam,
+        nextPageCount: row.nextPageCount,
+        skippedRows: row.skippedRows,
+        sampleSkippedKeys: JSON.parse(row.sampleSkippedKeys) as string[],
+        errors: JSON.parse(row.errors) as string[],
+      };
+      res.json({ ok: true, log });
+      return;
+    }
+    const memLog = getLastScrapeLog();
+    res.json({ ok: true, log: memLog ?? null });
   } catch (err) {
     next(err);
   }

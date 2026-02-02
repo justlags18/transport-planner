@@ -525,6 +525,38 @@ export function getLastScrapeLog(): ScrapeLog | null {
   return lastScrapeLog;
 }
 
+/** Persist scrape log to DB so all instances / restarts can read it. */
+async function saveScrapeLogToDb(log: ScrapeLog): Promise<void> {
+  try {
+    await prisma.scrapeLogEntry.upsert({
+      where: { id: "latest" },
+      create: {
+        id: "latest",
+        timestamp: log.timestamp,
+        totalRows: log.totalRows,
+        upserted: log.upserted,
+        detectedPageParam: log.detectedPageParam ?? null,
+        nextPageCount: log.nextPageCount,
+        skippedRows: log.skippedRows,
+        sampleSkippedKeys: JSON.stringify(log.sampleSkippedKeys),
+        errors: JSON.stringify(log.errors),
+      },
+      update: {
+        timestamp: log.timestamp,
+        totalRows: log.totalRows,
+        upserted: log.upserted,
+        detectedPageParam: log.detectedPageParam ?? null,
+        nextPageCount: log.nextPageCount,
+        skippedRows: log.skippedRows,
+        sampleSkippedKeys: JSON.stringify(log.sampleSkippedKeys),
+        errors: JSON.stringify(log.errors),
+      },
+    });
+  } catch (e) {
+    if (DEBUG) console.debug("[backoffice] failed to save scrape log to DB:", e);
+  }
+}
+
 export const fetchAndUpsertConsignments = async (options?: FetchAndUpsertOptions): Promise<number> => {
   const logErrors: string[] = [];
   const startedAt = new Date().toISOString();
@@ -656,7 +688,7 @@ export const fetchAndUpsertConsignments = async (options?: FetchAndUpsertOptions
   if (!rows.length) {
     const msg = "Could not find consignments table";
     logErrors.push(msg);
-    lastScrapeLog = {
+    const emptyLog: ScrapeLog = {
       timestamp: startedAt,
       totalRows: 0,
       upserted: 0,
@@ -666,6 +698,8 @@ export const fetchAndUpsertConsignments = async (options?: FetchAndUpsertOptions
       sampleSkippedKeys: [],
       errors: logErrors,
     };
+    lastScrapeLog = emptyLog;
+    saveScrapeLogToDb(emptyLog).catch(() => {});
     throw new Error(msg);
   }
   let upserted = 0;
@@ -781,7 +815,7 @@ export const fetchAndUpsertConsignments = async (options?: FetchAndUpsertOptions
   const sampleSkippedKeys = skippedRows.length > 0
     ? Object.keys(skippedRows[0]).filter((k) => !k.startsWith("_"))
     : [];
-  lastScrapeLog = {
+  const successLog: ScrapeLog = {
     timestamp: startedAt,
     totalRows: rows.length,
     upserted,
@@ -791,6 +825,8 @@ export const fetchAndUpsertConsignments = async (options?: FetchAndUpsertOptions
     sampleSkippedKeys,
     errors: logErrors,
   };
+  lastScrapeLog = successLog;
+  saveScrapeLogToDb(successLog).catch(() => {});
 
   // Archive only consignments not seen today (lastSeenAt < start of today) and not assigned.
   // This way dayboard jobs stay on Active even if the scrape missed them this run; we never
@@ -830,7 +866,7 @@ export const fetchAndUpsertConsignments = async (options?: FetchAndUpsertOptions
 
   return upserted;
   } catch (err) {
-    lastScrapeLog = {
+    const errorLog: ScrapeLog = {
       timestamp: startedAt,
       totalRows: rows.length,
       upserted: 0,
@@ -840,6 +876,8 @@ export const fetchAndUpsertConsignments = async (options?: FetchAndUpsertOptions
       sampleSkippedKeys: [],
       errors: [...logErrors, err instanceof Error ? err.message : String(err)],
     };
+    lastScrapeLog = errorLog;
+    saveScrapeLogToDb(errorLog).catch(() => {});
     throw err;
   }
 };
