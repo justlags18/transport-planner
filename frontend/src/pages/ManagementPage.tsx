@@ -247,6 +247,16 @@ export const ManagementPage = () => {
     }
   }, []);
 
+  const loadScrapeLog = useCallback(async () => {
+    try {
+      const res = await apiGet<{ ok: boolean; log: ScrapeLog | null }>("/api/consignments/scrape-log");
+      if (res.ok && res.log != null) setScrapeLog(res.log);
+      else setScrapeLog(null);
+    } catch {
+      setScrapeLog(null);
+    }
+  }, []);
+
   const handleConsignmentsRefresh = useCallback(async () => {
     setConsignmentsRefreshing(true);
     setError("");
@@ -267,16 +277,6 @@ export const ManagementPage = () => {
       setConsignmentsRefreshing(false);
     }
   }, [isDeveloper, loadScrapeLog]);
-
-  const loadScrapeLog = useCallback(async () => {
-    try {
-      const res = await apiGet<{ ok: boolean; log: ScrapeLog | null }>("/api/consignments/scrape-log");
-      if (res.ok && res.log != null) setScrapeLog(res.log);
-      else setScrapeLog(null);
-    } catch {
-      setScrapeLog(null);
-    }
-  }, []);
 
   const handleArchiveOldConsignments = useCallback(async () => {
     setConsignmentsArchiving(true);
