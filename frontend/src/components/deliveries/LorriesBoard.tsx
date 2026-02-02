@@ -25,7 +25,7 @@ type LorriesBoardProps = {
  * Renders lorries as vertical columns in a horizontally scrollable board.
  * Each column shows truck reg, status badge, capacity bar, and a drop zone for jobs.
  */
-const LorriesBoardInner = ({ lorries, activeDragData = null, missingPalletsFallback = 1, onUnassign, deliveryLocations = [], transportDate = "" }: LorriesBoardProps) => {
+const LorriesBoardInner = ({ lorries, activeDragData = null, missingPalletsFallback = 1, onUnassign, deliveryLocations = [], transportDate = "", onToggleReload, onMarkLorryAsBackload }: LorriesBoardProps) => {
   if (lorries.length === 0) {
     return (
       <div className="lorries-board lorries-board--empty">
