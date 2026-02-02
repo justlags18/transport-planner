@@ -212,18 +212,17 @@ consignmentsRouter.patch("/api/consignments/:id/unarchive", async (req, res, nex
 });
 
 /**
- * Force refresh: run full backoffice scrape and archive consignments not on the dayboard.
- * Keeps today's consignments plus any assigned to a lorry (e.g. from yesterday). Use when you need to refresh earlier than the 6am run.
- * Developers get scrape debug info in the response.
+ * Force refresh: starts full backoffice scrape and archive in the background.
+ * Returns 202 immediately so gateways don't 504 (the scrape can take 60s+).
+ * Run and check Developer log or Consignments page after a short wait.
  */
 consignmentsRouter.post("/api/consignments/refresh", async (req: AuthRequest, res, next) => {
   try {
-    const processed = await fetchAndUpsertConsignments({ forceArchive: true });
-    const payload: { ok: boolean; processed: number; debug?: ReturnType<typeof getLastScrapeLog> } = { ok: true, processed };
-    if (req.user?.role === "Developer") {
-      payload.debug = getLastScrapeLog();
-    }
-    res.json(payload);
+    res.status(202).json({ ok: true, message: "Refresh started in background. Check Developer log or Consignments in a moment." });
+
+    fetchAndUpsertConsignments({ forceArchive: true }).catch((err) => {
+      console.error("[consignments/refresh] background scrape failed:", err);
+    });
   } catch (err) {
     next(err);
   }

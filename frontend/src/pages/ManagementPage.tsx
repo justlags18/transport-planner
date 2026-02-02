@@ -251,14 +251,22 @@ export const ManagementPage = () => {
     setConsignmentsRefreshing(true);
     setError("");
     try {
-      const res = await apiPost<{ ok: boolean; processed?: number; debug?: ScrapeLog | null }>("/api/consignments/refresh", {});
-      if (res?.debug != null) setScrapeLog(res.debug);
+      await apiPost<{ ok: boolean; message?: string }>("/api/consignments/refresh", {});
+      if (isDeveloper) {
+        setError("");
+        const pollLog = () => {
+          loadScrapeLog();
+        };
+        setTimeout(pollLog, 3000);
+        setTimeout(pollLog, 8000);
+        setTimeout(pollLog, 15000);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Force refresh failed");
     } finally {
       setConsignmentsRefreshing(false);
     }
-  }, []);
+  }, [isDeveloper, loadScrapeLog]);
 
   const loadScrapeLog = useCallback(async () => {
     try {
