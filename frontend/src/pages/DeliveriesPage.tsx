@@ -10,7 +10,7 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
-import { apiGet, apiPost } from "../api/client";
+import { apiGet, apiPatch, apiPost } from "../api/client";
 import { UnassignedDeliveriesPanel } from "../components/deliveries/UnassignedDeliveriesPanel";
 import { LorriesBoard } from "../components/deliveries/LorriesBoard";
 import { DragGhost } from "../components/deliveries/DragGhost";
@@ -42,6 +42,10 @@ export const DeliveriesPage = () => {
   const [deliveryLocations, setDeliveryLocations] = useState<DeliveryLocationDTO[]>([]);
   const [customerLocationMap, setCustomerLocationMap] = useState<Record<string, string[]>>({});
   const [deliveryLocationFilter, setDeliveryLocationFilter] = useState<string>("all");
+  const [transportDate, setTransportDate] = useState<string>(() => {
+    const d = new Date();
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const refreshInFlight = useRef(false);
@@ -65,9 +69,10 @@ export const DeliveriesPage = () => {
   const refreshData = useCallback(async () => {
     if (refreshInFlight.current) return;
     refreshInFlight.current = true;
+    const dateParam = transportDate ? `&date=${encodeURIComponent(transportDate)}` : "";
     try {
       const [consRes, lorriesRes, locRes, mapRes] = await Promise.all([
-        apiGet<ConsignmentResponse>("/api/consignments?active=1&deliveryOnly=1"),
+        apiGet<ConsignmentResponse>(`/api/consignments?active=1&deliveryOnly=1${dateParam}`),
         apiGet<LorryDTO[]>("/api/lorries"),
         apiGet<DeliveryLocationsResponse>("/api/delivery-locations").catch(() => ({ ok: false, locations: [] })),
         apiGet<CustomerDeliveryLocationMapResponse>("/api/customer-prefs/delivery-location-map").catch(() => ({ ok: false, map: {} })),
@@ -82,7 +87,7 @@ export const DeliveriesPage = () => {
     } finally {
       refreshInFlight.current = false;
     }
-  }, []);
+  }, [transportDate]);
 
   useEffect(() => {
     let active = true;
@@ -97,6 +102,15 @@ export const DeliveriesPage = () => {
     load();
     return () => { active = false; };
   }, [refreshData]);
+
+  const transportDateChangedRef = useRef(false);
+  useEffect(() => {
+    if (!transportDateChangedRef.current) {
+      transportDateChangedRef.current = true;
+      return;
+    }
+    refreshData();
+  }, [transportDate, refreshData]);
 
   const selectedLocation = useMemo(
     () => (deliveryLocationFilter === "all" ? null : deliveryLocations.find((l) => l.id === deliveryLocationFilter)),
@@ -335,6 +349,34 @@ export const DeliveriesPage = () => {
     [lorries, refreshData],
   );
 
+  const handleToggleReload = useCallback(
+    async (assignmentId: string, isReload: boolean) => {
+      try {
+        await apiPatch(`/api/assignments/${assignmentId}/reload`, { isReload });
+        await refreshData();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to update reload flag");
+      }
+    },
+    [refreshData],
+  );
+
+  const handleMarkLorryAsBackload = useCallback(
+    async (lorryId: string) => {
+      const lorry = lorries.find((l) => l.id === lorryId);
+      if (!lorry?.assignments.length) return;
+      try {
+        await Promise.all(
+          lorry.assignments.map((a) => apiPatch(`/api/assignments/${a.id}/reload`, { isReload: true }))
+        );
+        await refreshData();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to mark as backload");
+      }
+    },
+    [lorries, refreshData],
+  );
+
   const handleBackfillPallets = useCallback(async () => {
     setBackfilling(true);
     setBackfillResult(null);
@@ -388,11 +430,21 @@ export const DeliveriesPage = () => {
         ) : null}
 
         <p className="management-intro">
-          Jobs shown are &quot;We deliver&quot; only (configured in Management → Customer Pref). Filter by delivery location, then drag jobs onto lorries.
+          Plan transport for the chosen date. Jobs shown are &quot;We deliver&quot; and &quot;We collect (from site)&quot; (configured in Management → Customer Pref). Filter by delivery location, then drag jobs onto lorries. Use &quot;Backload&quot; to mark a reload run; when a truck is over capacity you can &quot;Mark as backload&quot; for the whole load.
         </p>
 
         <section className="management-section deliveries-board-filter">
           <form className="management-create-form" onSubmit={(e) => e.preventDefault()}>
+            <label>
+              Transport date
+              <input
+                type="date"
+                className="management-select"
+                value={transportDate}
+                onChange={(e) => setTransportDate(e.target.value)}
+                aria-label="Plan transport for this date"
+              />
+            </label>
             <label>
               Delivery location
               <select
@@ -478,7 +530,7 @@ export const DeliveriesPage = () => {
                   }
                 }}
               />
-              <LorriesBoard lorries={lorries} activeDragData={activeDragDataForBoard} onUnassign={handleUnassign} deliveryLocations={deliveryLocations} />
+              <LorriesBoard lorries={lorries} activeDragData={activeDragDataForBoard} onUnassign={handleUnassign} deliveryLocations={deliveryLocations} transportDate={transportDate} onToggleReload={handleToggleReload} onMarkLorryAsBackload={handleMarkLorryAsBackload} />
             </div>
             <DragOverlay dropAnimation={null}>
               {activeDragData?.type === "consignment" ? (

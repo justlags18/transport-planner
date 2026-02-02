@@ -75,6 +75,7 @@ model Assignment {
   lorryId       String
   consignmentId String
   sortOrder     Int
+  isReload      Boolean    @default(false)  // Manual flag: this job is part of a reload/backload run
 
   lorry         Lorry      @relation(fields: [lorryId], references: [id], onDelete: Cascade)
   consignment   Consignment @relation(fields: [consignmentId], references: [id], onDelete: Cascade)

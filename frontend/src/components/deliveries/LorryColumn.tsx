@@ -63,11 +63,17 @@ type LorryColumnProps = {
   onUnassign?: (consignmentId: string) => void;
   /** Delivery locations for grouping headers. */
   deliveryLocations?: DeliveryLocationInfo[];
+  /** Transport/plan date (YYYY-MM-DD) – used to show "Reload" on jobs from previous day. */
+  transportDate?: string;
+  /** Toggle reload/backload flag for an assignment. */
+  onToggleReload?: (assignmentId: string, isReload: boolean) => void;
+  /** Mark all assignments on this lorry as backload. */
+  onMarkLorryAsBackload?: (lorryId: string) => void;
 };
 
 const PLACEHOLDER_SLOT_COUNT = 4;
 
-const LorryColumnInner = memo(({ lorry, activeDragData = null, missingPalletsFallback = 1, onUnassign, deliveryLocations = [] }: LorryColumnProps) => {
+const LorryColumnInner = memo(({ lorry, activeDragData = null, missingPalletsFallback = 1, onUnassign, deliveryLocations = [], transportDate = "", onToggleReload, onMarkLorryAsBackload }: LorryColumnProps) => {
   const { setNodeRef, isOver } = useDroppable({
     id: `lorry:${lorry.id}`,
     data: {
@@ -123,6 +129,19 @@ const LorryColumnInner = memo(({ lorry, activeDragData = null, missingPalletsFal
           <span className="lorries-board-column-capacity-text">
             {used} / {capacity} pallets
           </span>
+          {overCapacity && onMarkLorryAsBackload && (
+            <button
+              type="button"
+              className="lorries-board-column-backload-btn"
+              onClick={(e) => {
+                e.stopPropagation();
+                onMarkLorryAsBackload(lorry.id);
+              }}
+              title="Mark all jobs on this truck as backload/reload"
+            >
+              Mark as backload
+            </button>
+          )}
           {showPreview && (
             <span className="lorries-board-column-capacity-preview" title={wouldExceedCapacity ? "Over capacity" : undefined}>
               → {previewUsed} (preview)
@@ -183,6 +202,8 @@ const LorryColumnInner = memo(({ lorry, activeDragData = null, missingPalletsFal
                       lorryId={lorry.id}
                       showMissingPalletsChip
                       onUnassign={onUnassign}
+                      transportDate={transportDate}
+                      onToggleReload={onToggleReload}
                     />
                   ))}
                 </div>
@@ -205,6 +226,10 @@ type AssignmentRowProps = {
   lorryId: string;
   showMissingPalletsChip?: boolean;
   onUnassign?: (consignmentId: string) => void;
+  /** Transport/plan date (YYYY-MM-DD) – if job date is before this, show "Reload" badge. */
+  transportDate?: string;
+  /** Toggle manual "Reload/backload" flag for this assignment. */
+  onToggleReload?: (assignmentId: string, isReload: boolean) => void;
 };
 
 function awbDisplay(mawb: string | null | undefined, hawb: string | null | undefined): string {
@@ -213,7 +238,13 @@ function awbDisplay(mawb: string | null | undefined, hawb: string | null | undef
   return "—";
 }
 
-const AssignmentRow = ({ assignment, lorryId, showMissingPalletsChip = false, onUnassign }: AssignmentRowProps) => {
+function isJobBeforeTransportDate(etaIso: string | null | undefined, transportDate: string): boolean {
+  if (!transportDate?.trim() || !etaIso?.trim()) return false;
+  const jobDate = etaIso.slice(0, 10);
+  return jobDate < transportDate;
+}
+
+const AssignmentRow = ({ assignment, lorryId, showMissingPalletsChip = false, onUnassign, transportDate = "", onToggleReload }: AssignmentRowProps) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: `assignment:${assignment.id}`,
     data: {
@@ -237,6 +268,10 @@ const AssignmentRow = ({ assignment, lorryId, showMissingPalletsChip = false, on
   const client = c.customerNameRaw?.trim() || "Unknown client";
   const jobId = c.id;
   const awb = awbDisplay(c.mawbRaw ?? null, c.hawbRaw ?? null);
+  const deliveryType = (c as { deliveryType?: string }).deliveryType;
+  const manualReload = (assignment as { isReload?: boolean }).isReload ?? false;
+  const dateReload = transportDate ? isJobBeforeTransportDate(c.etaIso, transportDate) : false;
+  const isReload = manualReload || dateReload;
 
   return (
     <article
@@ -251,6 +286,42 @@ const AssignmentRow = ({ assignment, lorryId, showMissingPalletsChip = false, on
           ⋮⋮
         </button>
         <div>
+          <div className="lorries-board-assignment-badges">
+            {isReload && (
+              <span className="lorries-board-assignment-badge lorries-board-assignment-badge--reload" title={manualReload ? "Marked as backload/reload" : "Job from previous day – reload on this truck"}>
+                Reload
+              </span>
+            )}
+            {onToggleReload && (
+              <button
+                type="button"
+                className={`lorries-board-assignment-reload-toggle${manualReload ? " lorries-board-assignment-reload-toggle--on" : ""}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleReload(assignment.id, !manualReload);
+                }}
+                title={manualReload ? "Unmark as reload/backload" : "Mark as reload/backload"}
+                aria-pressed={manualReload}
+              >
+                {manualReload ? "✓ Backload" : "Backload"}
+              </button>
+            )}
+            {deliveryType === "self_collect" && (
+              <span className="lorries-board-assignment-badge lorries-board-assignment-badge--customer-collect" title="Customer collects">
+                Customer collects
+              </span>
+            )}
+            {deliveryType === "collection" && (
+              <span className="lorries-board-assignment-badge lorries-board-assignment-badge--collection" title="We collect from site">
+                Collection
+              </span>
+            )}
+            {deliveryType === "deliver" && (
+              <span className="lorries-board-assignment-badge lorries-board-assignment-badge--delivery" title="We deliver">
+                Delivery
+              </span>
+            )}
+          </div>
           <div className="card-title lorries-board-assignment-client-line">
             <span className="lorries-board-assignment-customer">{client}</span>
             {` · Job ${jobId}${awb !== "—" ? ` · AWB ${awb}` : ""}`}

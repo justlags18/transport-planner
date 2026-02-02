@@ -1021,6 +1021,44 @@ button:disabled {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.unassigned-delivery-row-badge {
+  flex-shrink: 0;
+  padding: 2px 5px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.unassigned-delivery-row-badge--delivery {
+  color: #0f172a;
+  background: rgba(34, 197, 94, 0.3);
+  border: 1px solid rgba(34, 197, 94, 0.5);
+}
+
+.unassigned-delivery-row-badge--collection {
+  color: #fff;
+  background: rgba(59, 130, 246, 0.75);
+  border: 1px solid rgba(59, 130, 246, 0.5);
+}
+
+.unassigned-delivery-row-badge--customer-collect {
+  color: #1e293b;
+  background: rgba(148, 163, 184, 0.5);
+  border: 1px solid rgba(100, 116, 139, 0.5);
+}
+
+.unassigned-delivery-row-client-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .unassigned-delivery-row-location {
@@ -1318,6 +1356,92 @@ button:disabled {
   color: var(--danger);
   text-transform: uppercase;
   letter-spacing: 0.03em;
+}
+
+.lorries-board-assignment-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  margin-bottom: 2px;
+}
+
+.lorries-board-assignment-badge {
+  flex-shrink: 0;
+  padding: 2px 6px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.lorries-board-assignment-badge--reload {
+  color: #fff;
+  background: rgba(251, 191, 36, 0.9);
+  border: 1px solid rgba(251, 191, 36, 0.6);
+}
+
+.lorries-board-assignment-badge--delivery {
+  color: #0f172a;
+  background: rgba(34, 197, 94, 0.35);
+  border: 1px solid rgba(34, 197, 94, 0.6);
+}
+
+.lorries-board-assignment-badge--collection {
+  color: #fff;
+  background: rgba(59, 130, 246, 0.8);
+  border: 1px solid rgba(59, 130, 246, 0.6);
+}
+
+.lorries-board-assignment-badge--customer-collect {
+  color: #1e293b;
+  background: rgba(148, 163, 184, 0.5);
+  border: 1px solid rgba(100, 116, 139, 0.6);
+}
+
+.lorries-board-assignment-reload-toggle {
+  flex-shrink: 0;
+  padding: 2px 6px;
+  font-size: 0.6rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.lorries-board-assignment-reload-toggle:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.lorries-board-assignment-reload-toggle--on {
+  background: rgba(251, 191, 36, 0.4);
+  border-color: rgba(251, 191, 36, 0.7);
+}
+
+.lorries-board-column-backload-btn {
+  flex-shrink: 0;
+  padding: 4px 8px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  border-radius: 4px;
+  border: 1px solid rgba(251, 191, 36, 0.6);
+  background: rgba(251, 191, 36, 0.25);
+  color: #fff;
+  cursor: pointer;
+  white-space: nowrap;
+  margin-left: 8px;
+}
+
+.lorries-board-column-backload-btn:hover {
+  background: rgba(251, 191, 36, 0.4);
 }
 
 .lorries-board-assignment-missing-chip {

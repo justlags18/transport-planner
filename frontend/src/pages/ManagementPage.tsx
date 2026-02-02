@@ -19,12 +19,13 @@ const TRUCK_CLASS_CAPACITY: Record<string, number> = {
   Vans: 3,
 };
 
-const DELIVERY_TYPES = ["deliver", "self_collect"] as const;
+const DELIVERY_TYPES = ["deliver", "collection", "self_collect"] as const;
 type DeliveryType = (typeof DELIVERY_TYPES)[number];
 
 const DELIVERY_TYPE_LABELS: Record<string, string> = {
   deliver: "We deliver",
-  self_collect: "Self collect",
+  collection: "We collect (from site)",
+  self_collect: "Customer collects",
 };
 
 type UserRow = {
@@ -425,7 +426,7 @@ export const ManagementPage = () => {
       if (res.ok && res.pref) {
         setPrefs((prev) =>
           [...prev, res.pref!].sort((a, b) => {
-            const typeOrder = (t: string) => (t === "deliver" ? 1 : 2);
+            const typeOrder = (t: string) => (t === "deliver" ? 1 : t === "collection" ? 2 : 3);
             if (typeOrder(a.deliveryType) !== typeOrder(b.deliveryType)) return typeOrder(a.deliveryType) - typeOrder(b.deliveryType);
             return a.displayName.localeCompare(b.displayName);
           })
@@ -493,7 +494,7 @@ export const ManagementPage = () => {
         setPrefs((prev) => {
           const next = prev.map((x) => (x.id === editingPrefId ? { ...x, ...updated } : x));
           return next.sort((a, b) => {
-            const typeOrder = (t: string) => (t === "deliver" ? 1 : 2);
+            const typeOrder = (t: string) => (t === "deliver" ? 1 : t === "collection" ? 2 : 3);
             if (typeOrder(a.deliveryType) !== typeOrder(b.deliveryType)) return typeOrder(a.deliveryType) - typeOrder(b.deliveryType);
             return a.displayName.localeCompare(b.displayName);
           });

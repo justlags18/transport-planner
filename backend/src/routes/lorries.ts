@@ -58,6 +58,15 @@ lorriesRouter.get("/api/lorries", async (_req, res, next) => {
       },
     });
 
+    const customerToDeliveryType = new Map<string, string>();
+    const prefs = await prisma.customerPref.findMany({
+      where: { customerKey: { not: null } },
+      select: { customerKey: true, deliveryType: true },
+    });
+    for (const p of prefs) {
+      if (p.customerKey) customerToDeliveryType.set(p.customerKey, p.deliveryType);
+    }
+
     const persistPallets: { consignmentId: string; palletsFromSite: number }[] = [];
 
     const items = lorries.map((lorry) => {
@@ -81,11 +90,13 @@ lorriesRouter.get("/api/lorries", async (_req, res, next) => {
 
         const { rawJson: _rawJson, palletOverride: _palletOverride, ...consignmentDto } =
           consignment;
+        const deliveryType = consignment.customerKey ? customerToDeliveryType.get(consignment.customerKey) ?? undefined : undefined;
 
         return {
           ...assignment,
-          consignment: consignmentDto,
+          consignment: { ...consignmentDto, deliveryType },
           effectivePallets,
+          isReload: assignment.isReload,
         };
       });
 

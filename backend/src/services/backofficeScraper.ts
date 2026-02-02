@@ -479,10 +479,12 @@ export const fetchAndUpsertConsignments = async (): Promise<number> => {
   }
   let upserted = 0;
   const now = new Date();
+  const seenIds: string[] = [];
 
   for (const row of rows) {
     const pmlRef = row["pml ref"] ?? "";
     if (!pmlRef) continue;
+    seenIds.push(pmlRef);
 
     const customer = row["client"] ?? "";
     const destination = row["airport"] ?? row["route"] ?? "";
@@ -573,6 +575,37 @@ export const fetchAndUpsertConsignments = async (): Promise<number> => {
       },
     });
     upserted += 1;
+  }
+
+  // Archive consignments no longer on the dayboard, but never archive consignments
+  // that are assigned to a lorry (they stay on the transport plan).
+  const archiveOnEveryScrape = process.env.PML_ARCHIVE_ON_EVERY_SCRAPE === "1";
+  const archiveHour = process.env.PML_ARCHIVE_HOUR != null ? parseInt(process.env.PML_ARCHIVE_HOUR, 10) : 2;
+  const shouldArchive = archiveOnEveryScrape || (typeof archiveHour === "number" && !Number.isNaN(archiveHour) && now.getHours() === archiveHour);
+
+  if (shouldArchive && seenIds.length > 0) {
+    const assigned = await prisma.assignment.findMany({
+      select: { consignmentId: true },
+      distinct: ["consignmentId"],
+    });
+    const assignedIds = assigned.map((a) => a.consignmentId);
+    const idsToKeep = new Set([...seenIds, ...assignedIds]);
+    const toArchive = await prisma.consignment.findMany({
+      where: {
+        archivedAt: null,
+        id: { notIn: Array.from(idsToKeep) },
+      },
+      select: { id: true },
+    });
+    if (toArchive.length > 0) {
+      await prisma.consignment.updateMany({
+        where: { id: { in: toArchive.map((c) => c.id) } },
+        data: { archivedAt: now },
+      });
+      if (DEBUG) {
+        console.debug(`[backoffice] archived ${toArchive.length} consignments not on dayboard (kept ${assignedIds.length} assigned)`);
+      }
+    }
   }
 
   return upserted;

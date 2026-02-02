@@ -13,13 +13,19 @@ type LorriesBoardProps = {
   onUnassign?: (consignmentId: string) => void;
   /** Delivery locations for grouping headers. */
   deliveryLocations?: DeliveryLocationInfo[];
+  /** Transport/plan date (YYYY-MM-DD) – used to show "Reload" on jobs from previous day. */
+  transportDate?: string;
+  /** Toggle reload/backload flag for an assignment. */
+  onToggleReload?: (assignmentId: string, isReload: boolean) => void;
+  /** Mark all assignments on a lorry as backload (e.g. when over capacity). */
+  onMarkLorryAsBackload?: (lorryId: string) => void;
 };
 
 /**
  * Renders lorries as vertical columns in a horizontally scrollable board.
  * Each column shows truck reg, status badge, capacity bar, and a drop zone for jobs.
  */
-const LorriesBoardInner = ({ lorries, activeDragData = null, missingPalletsFallback = 1, onUnassign, deliveryLocations = [] }: LorriesBoardProps) => {
+const LorriesBoardInner = ({ lorries, activeDragData = null, missingPalletsFallback = 1, onUnassign, deliveryLocations = [], transportDate = "" }: LorriesBoardProps) => {
   if (lorries.length === 0) {
     return (
       <div className="lorries-board lorries-board--empty">
@@ -39,6 +45,9 @@ const LorriesBoardInner = ({ lorries, activeDragData = null, missingPalletsFallb
             missingPalletsFallback={missingPalletsFallback}
             onUnassign={onUnassign}
             deliveryLocations={deliveryLocations}
+            transportDate={transportDate}
+            onToggleReload={onToggleReload}
+            onMarkLorryAsBackload={onMarkLorryAsBackload}
           />
         ))}
       </div>

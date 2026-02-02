@@ -29,6 +29,7 @@ export type AssignmentDTO = {
   consignmentId: string;
   sortOrder: number;
   effectivePallets: number;
+  isReload?: boolean;
   consignment: ConsignmentDTO;
 };
 

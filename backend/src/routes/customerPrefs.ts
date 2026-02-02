@@ -3,7 +3,7 @@ import { z } from "zod";
 import { prisma } from "../db";
 import type { AuthRequest } from "../middleware/auth";
 
-const DELIVERY_TYPES = ["deliver", "self_collect"] as const;
+const DELIVERY_TYPES = ["deliver", "collection", "self_collect"] as const;
 
 const createCustomerPrefSchema = z.object({
   displayName: z.string().trim().min(1),
@@ -196,7 +196,7 @@ customerPrefsRouter.delete("/api/customer-prefs/:id", async (req: AuthRequest, r
 customerPrefsRouter.get("/api/customer-prefs/delivery-location-map", async (_req: AuthRequest, res: Response) => {
   try {
     const prefs = await prisma.customerPref.findMany({
-      where: { customerKey: { not: null }, deliveryType: "deliver" },
+      where: { customerKey: { not: null }, deliveryType: { in: ["deliver", "collection"] } },
       include: { locations: true },
     });
     const map: Record<string, string[]> = {};

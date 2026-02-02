@@ -22,15 +22,15 @@ consignmentsRouter.get("/api/consignments", async (req, res, next) => {
 
     if (deliveryOnlyParam) {
       const deliverPrefs = await prisma.customerPref.findMany({
-        where: { deliveryType: "deliver", customerKey: { not: null } },
+        where: { deliveryType: { in: ["deliver", "collection"] }, customerKey: { not: null } },
         select: { customerKey: true },
       });
-      const customerKeys = deliverPrefs.map((p) => p.customerKey).filter(Boolean) as string[];
-      if (customerKeys.length === 0) {
+      const deliverCustomerKeys = deliverPrefs.map((p) => p.customerKey).filter(Boolean) as string[];
+      if (deliverCustomerKeys.length === 0) {
         res.json({ items: [] });
         return;
       }
-      andFilters.push({ customerKey: { in: customerKeys } });
+      andFilters.push({ customerKey: { in: deliverCustomerKeys } });
     }
 
     if (searchParam) {
@@ -117,7 +117,8 @@ consignmentsRouter.get("/api/consignments", async (req, res, next) => {
         }
       }
       
-      return { ...rest, palletsFromSite, deliveryLocationId };
+      const deliveryType = item.customerKey ? customerToDeliveryType.get(item.customerKey) ?? null : null;
+      return { ...rest, palletsFromSite, deliveryLocationId, deliveryType: deliveryType ?? undefined };
     });
 
     // Persist computed pallets and auto-assigned locations

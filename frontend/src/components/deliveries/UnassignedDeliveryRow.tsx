@@ -74,6 +74,7 @@ const UnassignedDeliveryRowInner = ({
   // Show dropdown only if customer has multiple (2+) locations
   // If customer has exactly 1 location, backend auto-assigns it, so no dropdown needed
   const showDropdown = availableLocations.length > 1;
+  const deliveryType = (consignment as { deliveryType?: string }).deliveryType;
 
   const handleCheckboxClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -134,7 +135,18 @@ const UnassignedDeliveryRowInner = ({
         </span>
       ) : null}
       <span className="unassigned-delivery-row-job">{consignment.id}</span>
-      <span className="unassigned-delivery-row-client">{consignment.customerNameRaw ?? "—"}</span>
+      <span className="unassigned-delivery-row-client">
+        {deliveryType === "self_collect" && (
+          <span className="unassigned-delivery-row-badge unassigned-delivery-row-badge--customer-collect" title="Customer collects">Customer collects</span>
+        )}
+        {deliveryType === "collection" && (
+          <span className="unassigned-delivery-row-badge unassigned-delivery-row-badge--collection" title="We collect from site">Collection</span>
+        )}
+        {deliveryType === "deliver" && (
+          <span className="unassigned-delivery-row-badge unassigned-delivery-row-badge--delivery" title="We deliver">Delivery</span>
+        )}
+        <span className="unassigned-delivery-row-client-name">{consignment.customerNameRaw ?? "—"}</span>
+      </span>
       <span className="unassigned-delivery-row-location">
         {showDropdown && onChangeDeliveryLocation ? (
           <select

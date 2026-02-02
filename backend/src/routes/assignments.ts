@@ -19,6 +19,10 @@ const reorderSchema = z.object({
   orderedConsignmentIds: z.array(z.string().trim().min(1)),
 });
 
+const setReloadSchema = z.object({
+  isReload: z.boolean(),
+});
+
 assignmentsRouter.post("/api/assignments/assign", async (req, res, next) => {
   try {
     const parsed = assignSchema.safeParse(req.body);
@@ -111,6 +115,30 @@ assignmentsRouter.post("/api/assignments/reorder", async (req, res, next) => {
       }
     });
 
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+assignmentsRouter.patch("/api/assignments/:id/reload", async (req, res, next) => {
+  try {
+    const parsed = setReloadSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ ok: false, error: "Invalid payload: isReload (boolean) required" });
+      return;
+    }
+    const { id } = req.params;
+    const { isReload } = parsed.data;
+    const assignment = await prisma.assignment.findUnique({ where: { id } });
+    if (!assignment) {
+      res.status(404).json({ ok: false, error: "Assignment not found" });
+      return;
+    }
+    await prisma.assignment.update({
+      where: { id },
+      data: { isReload },
+    });
     res.json({ ok: true });
   } catch (err) {
     next(err);
