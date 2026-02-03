@@ -750,6 +750,11 @@ export const FleetPage = () => {
                   const attachedLabel = trailer.lorry?.name ?? "Unassigned";
                   const selectedLorryId = trailerAssignById[trailer.id] ?? (trailer.lorryId ?? "");
                   const hasAssignChange = selectedLorryId !== (trailer.lorryId ?? "");
+                  const selectedLorry = lorries.find((l) => l.id === selectedLorryId);
+                  const assignLorryOptions: LorryRow[] =
+                    selectedLorry && (selectedLorry.truckClass ?? "Class1") !== "Class1"
+                      ? [...lorriesAssignableForTrailer, selectedLorry]
+                      : lorriesAssignableForTrailer;
                   const trailerHasSchedule = trailerScheduleEntries.some(
                     (entry) => entry.trailerId === trailer.id,
                   );
