@@ -753,7 +753,7 @@ export const FleetPage = () => {
                     }
                   };
                   const assignTrailer = async () => {
-                    if (!canToggleStatus) return;
+                    if (!canAssignTrailer) return;
                     try {
                       await apiPatch(`/api/trailers/${trailer.id}`, {
                         lorryId: selectedLorryId || null,
