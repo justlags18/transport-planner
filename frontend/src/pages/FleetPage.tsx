@@ -73,6 +73,7 @@ export const FleetPage = () => {
   const [loading, setLoading] = useState(true);
   const [trailers, setTrailers] = useState<TrailerRow[]>([]);
   const [trailersLoading, setTrailersLoading] = useState(false);
+  const [trailerAssignById, setTrailerAssignById] = useState<Record<string, string>>({});
   const [error, setError] = useState("");
   const [statusById, setStatusById] = useState<Record<string, "on" | "off" | "service">>({});
 
@@ -168,6 +169,18 @@ export const FleetPage = () => {
   useEffect(() => {
     if (activeTab === "trailers" || activeTab === "trucks") loadTrailers();
   }, [activeTab, loadTrailers]);
+
+  useEffect(() => {
+    setTrailerAssignById((prev) => {
+      const next = { ...prev };
+      for (const trailer of trailers) {
+        if (next[trailer.id] === undefined) {
+          next[trailer.id] = trailer.lorryId ?? "";
+        }
+      }
+      return next;
+    });
+  }, [trailers]);
 
   const handleAddSchedule = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -542,6 +555,8 @@ export const FleetPage = () => {
                   const status = trailer.status ?? "spare";
                   const statusLabel = TRAILER_STATUS_LABELS[status] ?? status;
                   const attachedLabel = trailer.lorry?.name ?? "Unassigned";
+                  const selectedLorryId = trailerAssignById[trailer.id] ?? (trailer.lorryId ?? "");
+                  const hasAssignChange = selectedLorryId !== (trailer.lorryId ?? "");
                   const updateStatus = async (nextStatus: TrailerStatus) => {
                     if (!canToggleStatus) return;
                     try {
@@ -551,6 +566,21 @@ export const FleetPage = () => {
                       );
                     } catch (e) {
                       setError(e instanceof Error ? e.message : "Failed to update trailer status");
+                    }
+                  };
+                  const assignTrailer = async () => {
+                    if (!canToggleStatus) return;
+                    try {
+                      await apiPatch(`/api/trailers/${trailer.id}`, {
+                        lorryId: selectedLorryId || null,
+                      });
+                      setTrailers((prev) =>
+                        prev.map((t) =>
+                          t.id === trailer.id ? { ...t, lorryId: selectedLorryId || null } : t,
+                        ),
+                      );
+                    } catch (e) {
+                      setError(e instanceof Error ? e.message : "Failed to assign trailer");
                     }
                   };
 
@@ -588,6 +618,36 @@ export const FleetPage = () => {
                         <span>Truck</span>
                         <span>{attachedLabel}</span>
                       </div>
+                      {canToggleStatus ? (
+                        <div className="fleet-card-meta">
+                          <span>Assign</span>
+                          <span style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                            <select
+                              className="management-select management-select-small"
+                              value={selectedLorryId}
+                              onChange={(e) =>
+                                setTrailerAssignById((prev) => ({
+                                  ...prev,
+                                  [trailer.id]: e.target.value,
+                                }))
+                              }
+                            >
+                              <option value="">— Unassigned —</option>
+                              {lorries.map((l) => (
+                                <option key={l.id} value={l.id}>{l.name}</option>
+                              ))}
+                            </select>
+                            <button
+                              type="button"
+                              className="management-btn management-btn-small"
+                              onClick={assignTrailer}
+                              disabled={!hasAssignChange}
+                            >
+                              Assign
+                            </button>
+                          </span>
+                        </div>
+                      ) : null}
                     </article>
                   );
                 })}
