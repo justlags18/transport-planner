@@ -276,7 +276,14 @@ export const ConsignmentsPage = () => {
                               {isNew ? <span className="consignments-new">New</span> : null}
                             </div>
                           </td>
-                          <td>{item.customerNameRaw ?? "-"}</td>
+                          <td>
+                            <span className="consignments-group-customer-row">
+                              <span>{item.customerNameRaw ?? "-"}</span>
+                              {item.isPlanned ? (
+                                <span className="consignments-planned-badge" title="Assigned to a lorry">Planned</span>
+                              ) : null}
+                            </span>
+                          </td>
                           <td>{item.mawbRaw ?? "-"}</td>
                           <td>{formatDateTime(item.etaIso)}</td>
                           <td>{item.packagesRaw ?? "-"}</td>
