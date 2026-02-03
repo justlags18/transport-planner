@@ -126,9 +126,11 @@ export async function geocodeUKPostcodeWithCache(
     typeof existing.lng === "number";
 
   if (hasCachedCoords && existingNormalized !== null && existingNormalized === normalized) {
-    const lat = existing.lat as number;
-    const lng = existing.lng as number;
-    return { lat, lng, normalized: existingNormalized };
+    const lat = existing.lat;
+    const lng = existing.lng;
+    if (lat != null && lng != null) {
+      return { lat, lng, normalized: existingNormalized };
+    }
   }
 
   return geocodeUKPostcode(postcode);

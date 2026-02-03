@@ -1,22 +1,25 @@
 /**
  * OSRM Table API: duration/distance matrix for driving between coordinates.
- * Durations are in seconds; distances are in metres.
+ * Durations in seconds; distances in metres.
  *
  * In-memory cache (v1): key = getMatrixCacheKey(coords, dayKey), TTL 10 minutes.
  */
 
+import { getOsmBaseUrl } from "../config/env";
+
 export type Coord = { lat: number; lng: number };
 
-export type MatrixResult = {
-  /** Duration matrix in seconds. durations[i][j] = travel time from coord i to coord j. */
+export type Matrix = {
   durations: number[][];
-  /** Distance matrix in metres. distances[i][j] = driving distance from coord i to coord j. */
   distances: number[][];
 };
 
+/** @deprecated Use Matrix */
+export type MatrixResult = Matrix;
+
 const MIN_COORDS = 2;
 const MAX_COORDS = 200;
-const DEFAULT_BASE_URL = process.env.OSRM_BASE_URL ?? "https://router.project-osrm.org";
+const REQUEST_TIMEOUT_MS = 20_000;
 const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
 const DECIMALS = 5;
@@ -25,7 +28,7 @@ function round5(n: number): number {
   return Math.round(n * m) / m;
 }
 
-type CacheEntry = { result: MatrixResult; expiresAt: number };
+type CacheEntry = { result: Matrix; expiresAt: number };
 const matrixCache = new Map<string, CacheEntry>();
 
 /**
@@ -45,19 +48,17 @@ export function toOsrmCoordString(coords: Coord[]): string {
 
 /**
  * Request a duration and distance matrix from OSRM table service (driving profile).
- * Coordinates must be in lng,lat order in the request; we accept { lat, lng } and convert.
+ * Coordinates in lng,lat order in the request; we accept { lat, lng } and convert.
+ * Durations in seconds; distances in metres. Uses 20s request timeout.
  *
- * - durations[i][j] = travel time from coord i to coord j, in seconds.
- * - distances[i][j] = driving distance from coord i to coord j, in metres.
+ * When opts.dayKey is set, results are cached in memory for 10 minutes.
  *
- * When opts.dayKey is set, results are cached in memory for 10 minutes (same coords + dayKey = cache hit).
- *
- * @throws Error if coords.length < 2, or > 200 (batch into multiple requests), or OSRM returns non-200
+ * @throws Error if coords.length < 2, or > 200, or OSRM returns non-200, or timeout
  */
 export async function osrmTableMatrix(
   coords: Coord[],
   opts?: { baseUrl?: string; dayKey?: string }
-): Promise<MatrixResult> {
+): Promise<Matrix> {
   if (coords.length < MIN_COORDS) {
     throw new Error(
       `OSRM table requires at least ${MIN_COORDS} coordinates; got ${coords.length}.`
@@ -79,17 +80,29 @@ export async function osrmTableMatrix(
     }
   }
 
-  const baseUrl = (opts?.baseUrl ?? DEFAULT_BASE_URL).replace(/\/$/, "");
+  const baseUrl = (opts?.baseUrl ?? getOsmBaseUrl()).replace(/\/$/, "");
   const coordString = toOsrmCoordString(coords);
   const url = `${baseUrl}/table/v1/driving/${coordString}?annotations=duration,distance`;
 
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
   let res: Response;
   try {
-    res = await fetch(url, { method: "GET", headers: { Accept: "application/json" } });
+    res = await fetch(url, {
+      method: "GET",
+      headers: { Accept: "application/json" },
+      signal: controller.signal,
+    });
   } catch (err) {
+    clearTimeout(timeoutId);
+    if (err instanceof Error && err.name === "AbortError") {
+      throw new Error(`OSRM table request timed out after ${REQUEST_TIMEOUT_MS / 1000}s`);
+    }
     const msg = err instanceof Error ? err.message : String(err);
     throw new Error(`OSRM table request failed: ${msg}`);
   }
+  clearTimeout(timeoutId);
 
   const text = await res.text();
   if (!res.ok) {
@@ -111,7 +124,7 @@ export async function osrmTableMatrix(
     );
   }
 
-  const result: MatrixResult = {
+  const result: Matrix = {
     durations: body.durations,
     distances: body.distances,
   };

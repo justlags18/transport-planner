@@ -21,6 +21,10 @@ validateEnv();
 
 export type DepotLocation = { lat: number; lng: number; postcode?: string };
 
+export function getOsmBaseUrl(): string {
+  return process.env.OSRM_BASE_URL?.trim() || "https://router.project-osrm.org";
+}
+
 export function getDepotEnv(): DepotLocation | null {
   const latRaw = process.env.DEPOT_LAT;
   const lngRaw = process.env.DEPOT_LNG;
