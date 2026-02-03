@@ -317,6 +317,15 @@ export const FleetPage = () => {
       setError("Trailer and start date/time are required.");
       return;
     }
+    if (trailerScheduleType === "off_road") {
+      const selectedTrailer = trailers.find((t) => t.id === trailerScheduleTrailerId);
+      if (selectedTrailer?.lorryId) {
+        const ok = window.confirm(
+          "This trailer is assigned to a truck. Scheduling OFF ROAD will unassign it when the start time begins. Continue?",
+        );
+        if (!ok) return;
+      }
+    }
     setError("");
     setAddingTrailerSchedule(true);
     try {
@@ -355,6 +364,16 @@ export const FleetPage = () => {
   const handleUpdateTrailerSchedule = async () => {
     if (!editingTrailerScheduleId) return;
     setError("");
+    if (editTrailerScheduleType === "off_road") {
+      const entry = trailerScheduleEntries.find((e) => e.id === editingTrailerScheduleId);
+      const selectedTrailer = trailers.find((t) => t.id === entry?.trailerId);
+      if (selectedTrailer?.lorryId) {
+        const ok = window.confirm(
+          "This trailer is assigned to a truck. Scheduling OFF ROAD will unassign it when the start time begins. Continue?",
+        );
+        if (!ok) return;
+      }
+    }
     try {
       const res = await apiPatch<UpdateTrailerScheduleResponse>(`/api/trailer-schedule/${editingTrailerScheduleId}`, {
         type: editTrailerScheduleType,
@@ -692,11 +711,28 @@ export const FleetPage = () => {
                   const hasAssignChange = selectedLorryId !== (trailer.lorryId ?? "");
                   const updateStatus = async (nextStatus: TrailerStatus) => {
                     if (!canToggleStatus) return;
+                    if (nextStatus === "off_road" && trailer.lorryId) {
+                      const ok = window.confirm(
+                        "This trailer is assigned to a truck. Set to OFF ROAD and unassign it?",
+                      );
+                      if (!ok) return;
+                    }
                     try {
                       await apiPatch(`/api/trailers/${trailer.id}`, { status: nextStatus });
                       setTrailers((prev) =>
-                        prev.map((t) => (t.id === trailer.id ? { ...t, status: nextStatus } : t)),
+                        prev.map((t) =>
+                          t.id === trailer.id
+                            ? {
+                                ...t,
+                                status: nextStatus,
+                                ...(nextStatus === "off_road" ? { lorryId: null, lorry: null } : {}),
+                              }
+                            : t,
+                        ),
                       );
+                      if (nextStatus === "off_road") {
+                        setTrailerAssignById((prev) => ({ ...prev, [trailer.id]: "" }));
+                      }
                     } catch (e) {
                       setError(e instanceof Error ? e.message : "Failed to update trailer status");
                     }

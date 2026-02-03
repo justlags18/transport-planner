@@ -31,7 +31,10 @@ export async function syncTrailerStatusFromSchedule(): Promise<Map<string, strin
     if (scheduledStatus && trailer.status !== scheduledStatus) {
       await prisma.trailer.update({
         where: { id: trailer.id },
-        data: { status: scheduledStatus },
+        data: {
+          status: scheduledStatus,
+          ...(scheduledStatus === "off_road" ? { lorryId: null } : {}),
+        },
       });
     }
   }

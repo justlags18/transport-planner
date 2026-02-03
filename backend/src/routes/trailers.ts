@@ -89,6 +89,7 @@ trailersRouter.patch("/api/trailers/:id", async (req: AuthRequest, res: Response
         ...(parsed.data.number !== undefined && { number: parsed.data.number }),
         ...(parsed.data.status !== undefined && { status: parsed.data.status }),
         ...(parsed.data.lorryId !== undefined && { lorryId: parsed.data.lorryId || null }),
+        ...(parsed.data.status === "off_road" && { lorryId: null }),
       },
     });
     res.json(trailer);
