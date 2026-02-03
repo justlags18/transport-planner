@@ -1322,13 +1322,21 @@ button:disabled {
 }
 
 .lorries-board-column-second-run-btn {
-  margin-top: 8px;
-  background: var(--accent);
-  color: #fff;
+  margin-top: 6px;
+  padding: 4px 8px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: 4px;
+  cursor: pointer;
 }
 
 .lorries-board-column-second-run-btn:hover {
-  filter: brightness(1.1);
+  background: var(--bg-muted);
+  color: var(--text-primary);
+  border-color: var(--border-subtle);
 }
 
 .lorries-board-column-reload-mode-badge {
@@ -1340,6 +1348,18 @@ button:disabled {
   color: var(--accent);
   background: rgba(99, 102, 241, 0.15);
   border-radius: 4px;
+}
+
+.lorries-board-column-cancel-second-run-btn {
+  margin-top: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  border-color: var(--border-default);
+}
+
+.lorries-board-column-cancel-second-run-btn:hover {
+  background: var(--bg-muted);
+  color: var(--text-primary);
 }
 
 .lorries-board-column-capacity-text {

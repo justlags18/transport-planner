@@ -71,8 +71,8 @@ type LorryColumnProps = {
   onMarkLorryAsBackload?: (lorryId: string) => void;
   /** Lorry ID for which "second run" mode is active (new drops count as reload). */
   lorryIdInReloadMode?: string | null;
-  /** Call when user clicks "Coming back for second run" on this lorry. */
-  onStartSecondRun?: (lorryId: string) => void;
+  /** Call when user clicks "Coming back for second run" (lorryId) or "Cancel second run" (null). */
+  onStartSecondRun?: (lorryId: string | null) => void;
 };
 
 const PLACEHOLDER_SLOT_COUNT = 4;
@@ -134,7 +134,10 @@ const LorryColumnInner = memo(({ lorry, activeDragData = null, missingPalletsFal
   const showPreview = isOver && activeDragData != null;
   const overCapacity = used > capacity;
   const showBackloadButton = used > 26 && onMarkLorryAsBackload && lorry.assignments.length > 0;
-  const showSecondRunButton = onStartSecondRun && lorry.assignments.length > 0 && !isInReloadMode;
+  const run1PalletsPercent = capacity > 0 ? (usedPallets1 / capacity) * 100 : 0;
+  const run1WeightPercent = capacityWeightKg > 0 ? (usedWeight1 / capacityWeightKg) * 100 : 0;
+  const run1At80Percent = run1PalletsPercent >= 80 || run1WeightPercent >= 80;
+  const showSecondRunButton = onStartSecondRun && lorry.assignments.length > 0 && !isInReloadMode && run1At80Percent;
   const isDragActive = activeDragData != null;
   const isEmpty = lorry.assignments.length === 0;
 
@@ -248,7 +251,7 @@ const LorryColumnInner = memo(({ lorry, activeDragData = null, missingPalletsFal
         {showSecondRunButton && (
           <button
             type="button"
-            className="lorries-board-column-backload-btn lorries-board-column-second-run-btn"
+            className="lorries-board-column-second-run-btn"
             onClick={(e) => {
               e.stopPropagation();
               onStartSecondRun?.(lorry.id);
@@ -259,7 +262,20 @@ const LorryColumnInner = memo(({ lorry, activeDragData = null, missingPalletsFal
           </button>
         )}
         {isInReloadMode && (
-          <span className="lorries-board-column-reload-mode-badge" role="status">Second run — drop jobs here</span>
+          <>
+            <span className="lorries-board-column-reload-mode-badge" role="status">Second run — drop jobs here</span>
+            <button
+              type="button"
+              className="lorries-board-column-backload-btn lorries-board-column-cancel-second-run-btn"
+              onClick={(e) => {
+                e.stopPropagation();
+                onStartSecondRun?.(null);
+              }}
+              title="Cancel second run; next jobs will count as first run"
+            >
+              Cancel second run
+            </button>
+          </>
         )}
         {showBackloadButton && (
           <button

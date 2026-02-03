@@ -21,8 +21,8 @@ type LorriesBoardProps = {
   onMarkLorryAsBackload?: (lorryId: string) => void;
   /** Lorry ID in "second run" mode (new drops count as reload). */
   lorryIdInReloadMode?: string | null;
-  /** Called when user clicks "Coming back for second run" on a lorry. */
-  onStartSecondRun?: (lorryId: string) => void;
+  /** Called when user clicks "Coming back for second run" (lorryId) or "Cancel second run" (null). */
+  onStartSecondRun?: (lorryId: string | null) => void;
 };
 
 /**

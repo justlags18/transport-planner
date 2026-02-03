@@ -570,7 +570,7 @@ export const DeliveriesPage = () => {
                   }
                 }}
               />
-              <LorriesBoard lorries={lorries} activeDragData={activeDragDataForBoard} onUnassign={handleUnassign} deliveryLocations={deliveryLocations} transportDate={transportDate} onToggleReload={handleToggleReload} onMarkLorryAsBackload={handleMarkLorryAsBackload} lorryIdInReloadMode={lorryIdInReloadMode} onStartSecondRun={setLorryIdInReloadMode} />
+              <LorriesBoard lorries={lorries} activeDragData={activeDragDataForBoard} onUnassign={handleUnassign} deliveryLocations={deliveryLocations} transportDate={transportDate} onToggleReload={handleToggleReload} onMarkLorryAsBackload={handleMarkLorryAsBackload} lorryIdInReloadMode={lorryIdInReloadMode} onStartSecondRun={(id) => setLorryIdInReloadMode(id)} />
             </div>
             <DragOverlay dropAnimation={null}>
               {activeDragData?.type === "consignment" ? (
