@@ -67,8 +67,6 @@ type LorryColumnProps = {
   transportDate?: string;
   /** Toggle reload/backload flag for an assignment. */
   onToggleReload?: (assignmentId: string, isReload: boolean) => void;
-  /** Mark all assignments on this lorry as backload. */
-  onMarkLorryAsBackload?: (lorryId: string) => void;
   /** Lorry ID for which "second run" mode is active (new drops count as reload). */
   lorryIdInReloadMode?: string | null;
   /** Call when user clicks "Coming back for second run" (lorryId) or "Cancel second run" (null). */
@@ -77,7 +75,7 @@ type LorryColumnProps = {
 
 const PLACEHOLDER_SLOT_COUNT = 4;
 
-const LorryColumnInner = memo(({ lorry, activeDragData = null, missingPalletsFallback = 1, onUnassign, deliveryLocations = [], transportDate = "", onToggleReload, onMarkLorryAsBackload, lorryIdInReloadMode = null, onStartSecondRun }: LorryColumnProps) => {
+const LorryColumnInner = memo(({ lorry, activeDragData = null, missingPalletsFallback = 1, onUnassign, deliveryLocations = [], transportDate = "", onToggleReload, lorryIdInReloadMode = null, onStartSecondRun }: LorryColumnProps) => {
   const { setNodeRef, isOver } = useDroppable({
     id: `lorry:${lorry.id}`,
     data: {
@@ -133,7 +131,6 @@ const LorryColumnInner = memo(({ lorry, activeDragData = null, missingPalletsFal
   const invalidDrop = wouldExceedRun1 || wouldExceedRun2;
   const showPreview = isOver && activeDragData != null;
   const overCapacity = used > capacity;
-  const showBackloadButton = used > 26 && onMarkLorryAsBackload && lorry.assignments.length > 0;
   const run1PalletsPercent = capacity > 0 ? (usedPallets1 / capacity) * 100 : 0;
   const run1WeightPercent = capacityWeightKg > 0 ? (usedWeight1 / capacityWeightKg) * 100 : 0;
   const run1At80Percent = run1PalletsPercent >= 80 || run1WeightPercent >= 80;
@@ -276,19 +273,6 @@ const LorryColumnInner = memo(({ lorry, activeDragData = null, missingPalletsFal
               Cancel second run
             </button>
           </>
-        )}
-        {showBackloadButton && (
-          <button
-            type="button"
-            className="lorries-board-column-backload-btn"
-            onClick={(e) => {
-              e.stopPropagation();
-              onMarkLorryAsBackload(lorry.id);
-            }}
-            title="Mark all jobs on this truck as backload/reload"
-          >
-            Mark as backload
-          </button>
         )}
       </div>
 

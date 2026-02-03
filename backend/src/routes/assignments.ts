@@ -1,8 +1,13 @@
-import { Router } from "express";
+import { Router, Response } from "express";
 import { z } from "zod";
 import { prisma } from "../db";
+import type { AuthRequest } from "../middleware/auth";
 
 export const assignmentsRouter = Router();
+
+function canClearAll(role: string): boolean {
+  return role === "Management" || role === "Developer";
+}
 
 const assignSchema = z.object({
   consignmentId: z.string().trim().min(1),
@@ -123,6 +128,20 @@ assignmentsRouter.post("/api/assignments/reorder", async (req, res, next) => {
     });
 
     res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+assignmentsRouter.post("/api/assignments/clear-all", async (req: AuthRequest, res: Response, next) => {
+  try {
+    const role = req.user?.role ?? "Clerk";
+    if (!canClearAll(role)) {
+      res.status(403).json({ ok: false, error: "Management or Developer role required to clear all assignments" });
+      return;
+    }
+    const result = await prisma.assignment.deleteMany({});
+    res.json({ ok: true, deleted: result.count });
   } catch (err) {
     next(err);
   }

@@ -17,8 +17,6 @@ type LorriesBoardProps = {
   transportDate?: string;
   /** Toggle reload/backload flag for an assignment. */
   onToggleReload?: (assignmentId: string, isReload: boolean) => void;
-  /** Mark all assignments on a lorry as backload (e.g. when over capacity). */
-  onMarkLorryAsBackload?: (lorryId: string) => void;
   /** Lorry ID in "second run" mode (new drops count as reload). */
   lorryIdInReloadMode?: string | null;
   /** Called when user clicks "Coming back for second run" (lorryId) or "Cancel second run" (null). */
@@ -29,7 +27,7 @@ type LorriesBoardProps = {
  * Renders lorries as vertical columns in a horizontally scrollable board.
  * Each column shows truck reg, status badge, capacity bar, and a drop zone for jobs.
  */
-const LorriesBoardInner = ({ lorries, activeDragData = null, missingPalletsFallback = 1, onUnassign, deliveryLocations = [], transportDate = "", onToggleReload, onMarkLorryAsBackload, lorryIdInReloadMode = null, onStartSecondRun }: LorriesBoardProps) => {
+const LorriesBoardInner = ({ lorries, activeDragData = null, missingPalletsFallback = 1, onUnassign, deliveryLocations = [], transportDate = "", onToggleReload, lorryIdInReloadMode = null, onStartSecondRun }: LorriesBoardProps) => {
   if (lorries.length === 0) {
     return (
       <div className="lorries-board lorries-board--empty">
@@ -51,7 +49,6 @@ const LorriesBoardInner = ({ lorries, activeDragData = null, missingPalletsFallb
             deliveryLocations={deliveryLocations}
             transportDate={transportDate}
             onToggleReload={onToggleReload}
-            onMarkLorryAsBackload={onMarkLorryAsBackload}
             lorryIdInReloadMode={lorryIdInReloadMode}
             onStartSecondRun={onStartSecondRun}
           />

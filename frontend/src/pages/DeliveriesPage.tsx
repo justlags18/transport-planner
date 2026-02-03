@@ -10,6 +10,7 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
+import { useAuth } from "../context/AuthContext";
 import { apiGet, apiPatch, apiPost } from "../api/client";
 import { UnassignedDeliveriesPanel } from "../components/deliveries/UnassignedDeliveriesPanel";
 import { LorriesBoard } from "../components/deliveries/LorriesBoard";
@@ -62,6 +63,9 @@ export const DeliveriesPage = () => {
     sampleRow?: Record<string, string>;
   } | null>(null);
   const [backfilling, setBackfilling] = useState(false);
+  const [clearAllInProgress, setClearAllInProgress] = useState(false);
+  const { user } = useAuth();
+  const canClearAll = user?.role === "Management" || user?.role === "Developer";
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -395,21 +399,26 @@ export const DeliveriesPage = () => {
     [refreshData],
   );
 
-  const handleMarkLorryAsBackload = useCallback(
-    async (lorryId: string) => {
-      const lorry = lorries.find((l) => l.id === lorryId);
-      if (!lorry?.assignments.length) return;
-      try {
-        await Promise.all(
-          lorry.assignments.map((a) => apiPatch(`/api/assignments/${a.id}/reload`, { isReload: true }))
-        );
+  const handleClearAllAndRefresh = useCallback(async () => {
+    if (!canClearAll) return;
+    const ok = window.confirm(
+      "Clear all delivery assignments? Every job will be unassigned from every truck. You can then refresh and re-plan. This cannot be undone."
+    );
+    if (!ok) return;
+    setClearAllInProgress(true);
+    setError(null);
+    try {
+      const res = await apiPost<{ ok: boolean; deleted?: number }>("/api/assignments/clear-all", {});
+      if (res?.ok) {
+        setLorryIdInReloadMode(null);
         await refreshData();
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to mark as backload");
       }
-    },
-    [lorries, refreshData],
-  );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Clear all failed");
+    } finally {
+      setClearAllInProgress(false);
+    }
+  }, [canClearAll, refreshData]);
 
   const handleBackfillPallets = useCallback(async () => {
     setBackfilling(true);
@@ -470,7 +479,7 @@ export const DeliveriesPage = () => {
         ) : null}
 
         <p className="management-intro">
-          Plan transport for the chosen date. Jobs shown are &quot;We deliver&quot; and &quot;We collect (from site)&quot; (configured in Management → Customer Pref). The consignments board archives at 6am daily (today&apos;s jobs plus any still on lorries). Use Management → Consignments to force refresh or archive old consignments. Filter by delivery location, then drag jobs onto lorries. Use &quot;Backload&quot; to mark a reload run; when a truck is over capacity you can &quot;Mark as backload&quot; for the whole load.
+          Plan transport for the chosen date. Jobs shown are &quot;We deliver&quot; and &quot;We collect (from site)&quot; (configured in Management → Customer Pref). The consignments board archives at 6am daily (today&apos;s jobs plus any still on lorries). Use Management → Consignments to force refresh or archive old consignments. Filter by delivery location, then drag jobs onto lorries. Use &quot;Backload&quot; on a job to mark it as reload, or &quot;Coming back for second run&quot; when the first run is near full to add more as a second run.
         </p>
 
         <section className="management-section deliveries-board-filter">
@@ -514,6 +523,17 @@ export const DeliveriesPage = () => {
             >
               {backfilling ? "Backfilling…" : "Backfill pallets"}
             </button>
+            {canClearAll && (
+              <button
+                type="button"
+                className="management-btn management-btn-small management-btn-danger"
+                onClick={handleClearAllAndRefresh}
+                disabled={clearAllInProgress}
+                title="Remove every job from every truck, then refresh. Management/Developer only."
+              >
+                {clearAllInProgress ? "Clearing…" : "Clear all & refresh"}
+              </button>
+            )}
           </form>
         </section>
         {backfillResult != null && (
@@ -570,7 +590,7 @@ export const DeliveriesPage = () => {
                   }
                 }}
               />
-              <LorriesBoard lorries={lorries} activeDragData={activeDragDataForBoard} onUnassign={handleUnassign} deliveryLocations={deliveryLocations} transportDate={transportDate} onToggleReload={handleToggleReload} onMarkLorryAsBackload={handleMarkLorryAsBackload} lorryIdInReloadMode={lorryIdInReloadMode} onStartSecondRun={(id) => setLorryIdInReloadMode(id)} />
+              <LorriesBoard lorries={lorries} activeDragData={activeDragDataForBoard} onUnassign={handleUnassign} deliveryLocations={deliveryLocations} transportDate={transportDate} onToggleReload={handleToggleReload} lorryIdInReloadMode={lorryIdInReloadMode} onStartSecondRun={(id) => setLorryIdInReloadMode(id)} />
             </div>
             <DragOverlay dropAnimation={null}>
               {activeDragData?.type === "consignment" ? (

@@ -38,6 +38,15 @@ function isMissingPallets(c: DeliveryJobConsignment): boolean {
   return p == null || p === 0;
 }
 
+/** Urgent = not delivered/assigned for over 1 day: ETA is more than 24 hours in the past. */
+function isUrgent(c: DeliveryJobConsignment): boolean {
+  if (!c.etaIso?.trim()) return false;
+  const eta = new Date(c.etaIso);
+  if (Number.isNaN(eta.getTime())) return false;
+  const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
+  return eta.getTime() < oneDayAgo;
+}
+
 export const UnassignedDeliveriesPanel = ({
   unassigned,
   loading = false,
@@ -74,7 +83,7 @@ export const UnassignedDeliveriesPanel = ({
       list = list.filter((c) => {
         const etaToday = isEtaToday(c.etaIso);
         const missingPallets = isMissingPallets(c);
-        const urgent = etaToday || missingPallets;
+        const urgent = isUrgent(c);
         if (filterEtaToday && !etaToday) return false;
         if (filterMissingPallets && !missingPallets) return false;
         if (filterUrgent && !urgent) return false;
