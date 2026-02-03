@@ -12,6 +12,7 @@ export type DeliveryJobConsignment = {
   etaIso: string | null;
   status: string | null;
   palletsFromSite: number | null;
+  weightFromSite: number | null;
   lastSeenAt: string;
   archivedAt: string | null;
   createdAt: string;

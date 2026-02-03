@@ -5,8 +5,11 @@ import { useAuth } from "../context/AuthContext";
 type LorryRow = {
   id: string;
   name: string;
+  truckClass?: string;
   capacityPallets: number;
+  capacityWeightKg: number;
   usedPallets: number;
+  usedWeight: number;
   assignments: { id: string }[];
   status?: "on" | "off" | "service";
 };
@@ -129,6 +132,12 @@ export const FleetPage = () => {
   const [editTrailerScheduleEndAt, setEditTrailerScheduleEndAt] = useState("");
   const [editTrailerScheduleNotes, setEditTrailerScheduleNotes] = useState("");
   const [deletingTrailerScheduleId, setDeletingTrailerScheduleId] = useState<string | null>(null);
+
+  /** Lorries that can receive a trailer: Class 1 only. */
+  const lorriesAssignableForTrailer = useMemo(
+    () => lorries.filter((l) => (l.truckClass ?? "Class1") === "Class1"),
+    [lorries],
+  );
 
   const canAssignTrailer = useMemo(() => {
     const role = user?.role ?? "Clerk";
@@ -505,18 +514,39 @@ export const FleetPage = () => {
                         <span>{statusMeta}</span>
                       </div>
                       <div className="fleet-card-meta">
-                        <span>Capacity</span>
+                        <span>Capacity (pallets)</span>
                         <span>{lorry.capacityPallets}</span>
                       </div>
                       <div className="fleet-card-meta">
-                        <span>Used</span>
+                        <span>Used (pallets)</span>
                         <span>{used}</span>
                       </div>
                       <div className="fleet-card-bar">
                         <div className="fleet-card-bar-fill" style={{ width: `${percent}%` }} />
                       </div>
                       <div className="fleet-card-footnote">
-                        {used} / {capacity} slots used
+                        {used} / {capacity} pallets
+                      </div>
+                      <div className="fleet-card-meta">
+                        <span>Max weight</span>
+                        <span>{(lorry.capacityWeightKg ?? 0).toLocaleString()} kg</span>
+                      </div>
+                      <div className="fleet-card-meta">
+                        <span>Used (weight)</span>
+                        <span>{(lorry.usedWeight ?? 0).toLocaleString()} kg</span>
+                      </div>
+                      {lorry.capacityWeightKg > 0 && (
+                        <div className="fleet-card-bar">
+                          <div
+                            className="fleet-card-bar-fill"
+                            style={{
+                              width: `${Math.min(100, ((lorry.usedWeight ?? 0) / lorry.capacityWeightKg) * 100)}%`,
+                            }}
+                          />
+                        </div>
+                      )}
+                      <div className="fleet-card-footnote">
+                        {(lorry.usedWeight ?? 0).toLocaleString()} / {(lorry.capacityWeightKg ?? 0).toLocaleString()} kg
                       </div>
                     </article>
                   );
@@ -819,7 +849,7 @@ export const FleetPage = () => {
                               }
                             >
                               <option value="">— Unassigned —</option>
-                              {lorries.map((l) => (
+                              {assignLorryOptions.map((l) => (
                                 <option key={l.id} value={l.id}>{l.name}</option>
                               ))}
                             </select>

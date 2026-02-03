@@ -29,6 +29,7 @@ export type AssignmentDTO = {
   consignmentId: string;
   sortOrder: number;
   effectivePallets: number;
+  effectiveWeight: number;
   isReload?: boolean;
   consignment: ConsignmentDTO;
 };
@@ -36,10 +37,13 @@ export type AssignmentDTO = {
 export type LorryDTO = {
   id: string;
   name: string;
+  truckClass?: string;
   capacityPallets: number;
+  capacityWeightKg: number;
+  usedPallets: number;
+  usedWeight: number;
   createdAt: string;
   updatedAt: string;
-  usedPallets: number;
   assignments: AssignmentDTO[];
   status?: "on" | "off" | "service";
 };

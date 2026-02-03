@@ -174,6 +174,26 @@ export function computePalletsFromRow(row: Record<string, unknown>): number | nu
   return pieces;
 }
 
+/**
+ * Compute weight in kg from a backoffice row.
+ * Looks for weight / gross weight / net weight / kgs etc.
+ */
+export function computeWeightFromRow(row: Record<string, unknown>): number | null {
+  const weightRaw =
+    str(row, "weight") || str(row, "weight kg") || str(row, "weight (kg)") || str(row, "weight (kgs)")
+    || str(row, "weight kgs") || str(row, "total weight") || str(row, "gross weight") || str(row, "net weight")
+    || str(row, "actual weight") || str(row, "kgs")
+    || firstMatch(row, [/weight|kgs?|gross|net\s*weight|actual/]);
+  if (!weightRaw) {
+    const scanned = scanAllKeysForNumber(row, ["weight", "kg", "gross", "net weight", "actual weight"]);
+    if (!scanned) return null;
+    const n = parseNumber(scanned);
+    return n != null && n > 0 ? Math.round(n) : null;
+  }
+  const n = parseNumber(weightRaw);
+  return n != null && n > 0 ? Math.round(n) : null;
+}
+
 const parseEtaIso = (dateStr: string, timeStr: string): string | null => {
   const timeLabel = timeStr.trim();
   if (timeLabel) {
@@ -760,6 +780,7 @@ export const fetchAndUpsertConsignments = async (options?: FetchAndUpsertOptions
       ?? row["pcs"]
       ?? "";
     const palletsFromSite = computePalletsFromRow(row);
+    const weightFromSite = computeWeightFromRow(row);
 
     const status = row["status 1"] ?? row["status"] ?? "";
 
@@ -778,6 +799,7 @@ export const fetchAndUpsertConsignments = async (options?: FetchAndUpsertOptions
         etaIso,
         status: status || null,
         palletsFromSite,
+        weightFromSite,
         rawJson: JSON.stringify(row),
         lastSeenAt: now,
         archivedAt: null,
@@ -796,6 +818,7 @@ export const fetchAndUpsertConsignments = async (options?: FetchAndUpsertOptions
         etaIso,
         status: status || null,
         palletsFromSite,
+        weightFromSite,
         rawJson: JSON.stringify(row),
         lastSeenAt: now,
         archivedAt: null,

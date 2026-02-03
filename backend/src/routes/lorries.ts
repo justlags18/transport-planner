@@ -3,9 +3,16 @@ import { z } from "zod";
 import { prisma } from "../db";
 import type { AuthRequest } from "../middleware/auth";
 import { syncLorryStatusFromSchedule } from "../services/lorryStatusSync";
-import { computePalletsFromRow } from "../services/backofficeScraper";
+import { computePalletsFromRow, computeWeightFromRow } from "../services/backofficeScraper";
 
 const TRUCK_CLASSES = ["Class1", "Class2", "Vans"] as const;
+
+/** Maximum weight capacity in kg by truck class. */
+const CAPACITY_WEIGHT_KG: Record<string, number> = {
+  Class1: 24_000,
+  Class2: 8_500,
+  Vans: 900,
+};
 
 function canManageLorries(role: string): boolean {
   return role === "Management" || role === "Developer";
@@ -72,6 +79,7 @@ lorriesRouter.get("/api/lorries", async (_req, res, next) => {
     }
 
     const persistPallets: { consignmentId: string; palletsFromSite: number }[] = [];
+    const persistWeights: { consignmentId: string; weightFromSite: number }[] = [];
 
     const items = lorries.map((lorry) => {
       const effectiveStatus = statusByLorryId.get(lorry.id) ?? lorry.status ?? "on";
@@ -92,6 +100,20 @@ lorriesRouter.get("/api/lorries", async (_req, res, next) => {
           }
         }
 
+        let effectiveWeight = consignment.weightFromSite ?? 0;
+        if (effectiveWeight === 0 && consignment.rawJson) {
+          try {
+            const row = JSON.parse(consignment.rawJson) as Record<string, unknown>;
+            const computed = computeWeightFromRow(row);
+            if (computed != null) effectiveWeight = computed;
+            if (computed != null && computed > 0) {
+              persistWeights.push({ consignmentId: consignment.id, weightFromSite: computed });
+            }
+          } catch {
+            // ignore
+          }
+        }
+
         const { rawJson: _rawJson, palletOverride: _palletOverride, ...consignmentDto } =
           consignment;
         const deliveryType = consignment.customerKey ? customerToDeliveryType.get(consignment.customerKey) ?? undefined : undefined;
@@ -100,27 +122,42 @@ lorriesRouter.get("/api/lorries", async (_req, res, next) => {
           ...assignment,
           consignment: { ...consignmentDto, deliveryType },
           effectivePallets,
+          effectiveWeight,
           isReload: assignment.isReload,
         };
       });
 
       const usedPallets = assignments.reduce((sum, assignment) => sum + assignment.effectivePallets, 0);
+      const usedWeight = assignments.reduce((sum, assignment) => sum + assignment.effectiveWeight, 0);
+      const capacityWeightKg = CAPACITY_WEIGHT_KG[lorry.truckClass ?? "Class1"] ?? 24_000;
 
       return {
         ...lorry,
         status: effectiveStatus,
         assignments,
         usedPallets,
+        usedWeight,
+        capacityWeightKg,
       };
     });
 
-    // Persist computed pallets so future reads see value from DB
+    // Persist computed pallets and weights so future reads see value from DB
     if (persistPallets.length > 0) {
       await Promise.all(
         persistPallets.map(({ consignmentId, palletsFromSite }) =>
           prisma.consignment.update({
             where: { id: consignmentId },
             data: { palletsFromSite },
+          }),
+        ),
+      );
+    }
+    if (persistWeights.length > 0) {
+      await Promise.all(
+        persistWeights.map(({ consignmentId, weightFromSite }) =>
+          prisma.consignment.update({
+            where: { id: consignmentId },
+            data: { weightFromSite },
           }),
         ),
       );

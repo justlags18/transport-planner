@@ -21,6 +21,7 @@ model Consignment {
   etaIso         String?
   status         String?
   palletsFromSite Int?
+  weightFromSite  Int?    // weight in kg from backoffice
   rawJson        String
   deliveryLocationId String?  // Optional override for delivery location
   lastSeenAt     DateTime

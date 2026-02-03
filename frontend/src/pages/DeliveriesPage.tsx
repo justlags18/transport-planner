@@ -26,12 +26,13 @@ type ConsignmentDragItem = {
   consignmentId: string;
   jobId: string;
   pallets: number;
+  weight: number;
   consignment: DeliveryJobConsignment;
 };
 
 type ActiveDragData =
-  | { type: "consignment"; items: ConsignmentDragItem[]; totalPallets: number }
-  | { type: "assignment"; consignmentId: string; pallets: number; jobId: string; sourceLorryId?: string }
+  | { type: "consignment"; items: ConsignmentDragItem[]; totalPallets: number; totalWeight: number }
+  | { type: "assignment"; consignmentId: string; pallets: number; weight: number; jobId: string; sourceLorryId?: string }
   | null;
 
 const MISSING_PALLETS_FALLBACK = 1;
@@ -178,16 +179,19 @@ export const DeliveriesPage = () => {
             consignmentId: c.id,
             jobId: c.id,
             pallets: (c.palletsFromSite ?? 0) > 0 ? (c.palletsFromSite ?? 0) : MISSING_PALLETS_FALLBACK,
+            weight: c.weightFromSite ?? 0,
             consignment: c,
           }));
         if (items.length === 0) return;
         const totalPallets = items.reduce((s, i) => s + i.pallets, 0);
-        setActiveDragData({ type: "consignment", items, totalPallets });
+        const totalWeight = items.reduce((s, i) => s + i.weight, 0);
+        setActiveDragData({ type: "consignment", items, totalPallets, totalWeight });
         return;
       }
       if (type === "assignment" && consignmentId) {
         const sourceLorryId = data.lorryId as string | undefined;
-        setActiveDragData({ type: "assignment", consignmentId, pallets, jobId, sourceLorryId });
+        const weight = Number(data.weight) || 0;
+        setActiveDragData({ type: "assignment", consignmentId, pallets, weight, jobId, sourceLorryId });
       }
     },
     [unassigned, selectedUnassignedIds],
@@ -205,11 +209,14 @@ export const DeliveriesPage = () => {
       const targetLorryId = overType === "lorry" ? (over.data.current?.lorryId as string) : undefined;
 
       if (dragData?.type === "consignment" && targetLorryId) {
-        const { items, totalPallets } = dragData;
+        const { items, totalPallets, totalWeight } = dragData;
         const targetLorry = lorries.find((l) => l.id === targetLorryId);
         const capacity = targetLorry ? Math.max(targetLorry.capacityPallets, 1) : 0;
         const used = targetLorry?.usedPallets ?? 0;
+        const capacityWeight = targetLorry?.capacityWeightKg ?? 24_000;
+        const usedW = targetLorry?.usedWeight ?? 0;
         if (used + totalPallets > capacity) return;
+        if (usedW + totalWeight > capacityWeight) return;
 
         const prevLorries = lorries;
         const newAssignments: AssignmentDTO[] = items.map((item, i) => ({
@@ -218,6 +225,7 @@ export const DeliveriesPage = () => {
           consignmentId: item.consignmentId,
           sortOrder: i,
           effectivePallets: item.pallets,
+          effectiveWeight: item.weight,
           consignment: item.consignment as AssignmentDTO["consignment"],
         }));
 
@@ -225,7 +233,7 @@ export const DeliveriesPage = () => {
           prev.map((l) => {
             if (l.id !== targetLorryId) return l;
             const assignments = [...l.assignments, ...newAssignments].map((a, i) => ({ ...a, sortOrder: i }));
-            return { ...l, assignments, usedPallets: l.usedPallets + totalPallets };
+            return { ...l, assignments, usedPallets: l.usedPallets + totalPallets, usedWeight: l.usedWeight + totalWeight };
           })
         );
         setSelectedUnassignedIds(new Set());
@@ -244,11 +252,14 @@ export const DeliveriesPage = () => {
       }
 
       if (dragData?.type === "assignment" && overType === "lorry" && targetLorryId) {
-        const { consignmentId, pallets, sourceLorryId } = dragData;
+        const { consignmentId, pallets, weight, sourceLorryId } = dragData;
         const targetLorry = lorries.find((l) => l.id === targetLorryId);
         const capacity = targetLorry ? Math.max(targetLorry.capacityPallets, 1) : 0;
         const used = targetLorry?.usedPallets ?? 0;
+        const capacityWeight = targetLorry?.capacityWeightKg ?? 24_000;
+        const usedW = targetLorry?.usedWeight ?? 0;
         if (used + pallets > capacity) return;
+        if (usedW + weight > capacityWeight) return;
 
         const prevLorries = lorries;
         const consignment =
@@ -262,6 +273,7 @@ export const DeliveriesPage = () => {
           consignmentId,
           sortOrder: 0,
           effectivePallets: pallets,
+          effectiveWeight: weight,
           consignment: consignment as AssignmentDTO["consignment"],
         };
 
@@ -270,11 +282,12 @@ export const DeliveriesPage = () => {
             if (sourceLorryId && l.id === sourceLorryId) {
               const filtered = l.assignments.filter((a) => a.consignmentId !== consignmentId);
               const usedNow = filtered.reduce((s, a) => s + a.effectivePallets, 0);
-              return { ...l, assignments: filtered, usedPallets: usedNow };
+              const usedWeightNow = filtered.reduce((s, a) => s + a.effectiveWeight, 0);
+              return { ...l, assignments: filtered, usedPallets: usedNow, usedWeight: usedWeightNow };
             }
             if (l.id === targetLorryId) {
               const assignments = [...l.assignments, { ...newAssignment, sortOrder: l.assignments.length }].map((a, i) => ({ ...a, sortOrder: i }));
-              return { ...l, assignments, usedPallets: l.usedPallets + pallets };
+              return { ...l, assignments, usedPallets: l.usedPallets + pallets, usedWeight: l.usedWeight + weight };
             }
             return l;
           })
@@ -330,12 +343,14 @@ export const DeliveriesPage = () => {
       const lorryWithJob = prevLorries.find((l) => l.assignments.some((a) => a.consignmentId === consignmentId));
       if (!lorryWithJob) return;
       const pallets = lorryWithJob.assignments.find((a) => a.consignmentId === consignmentId)?.effectivePallets ?? 0;
+      const weight = lorryWithJob.assignments.find((a) => a.consignmentId === consignmentId)?.effectiveWeight ?? 0;
       setLorries((prev) =>
         prev.map((l) => {
           if (l.id !== lorryWithJob.id) return l;
           const filtered = l.assignments.filter((a) => a.consignmentId !== consignmentId);
           const usedNow = filtered.reduce((s, a) => s + a.effectivePallets, 0);
-          return { ...l, assignments: filtered, usedPallets: usedNow };
+          const usedWeightNow = filtered.reduce((s, a) => s + a.effectiveWeight, 0);
+          return { ...l, assignments: filtered, usedPallets: usedNow, usedWeight: usedWeightNow };
         })
       );
       try {
@@ -413,6 +428,12 @@ export const DeliveriesPage = () => {
                 ? activeDragData.totalPallets
                 : activeDragData.type === "assignment"
                   ? activeDragData.pallets
+                  : 0,
+            weight:
+              activeDragData.type === "consignment"
+                ? activeDragData.totalWeight
+                : activeDragData.type === "assignment"
+                  ? activeDragData.weight
                   : 0,
           }
         : null,

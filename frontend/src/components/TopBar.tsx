@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import logoImg from "../assets/logo-header.png";
 import { useAuth } from "../context/AuthContext";
 import { RoleBadge } from "./RoleBadge";
@@ -15,7 +16,25 @@ function firstNameFromEmail(email: string): string {
 }
 
 export const TopBar = () => {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [menuOpen]);
+
+  const handleSignOut = () => {
+    setMenuOpen(false);
+    logout();
+  };
 
   return (
     <header className="dashboard-topbar" role="banner">
@@ -32,9 +51,35 @@ export const TopBar = () => {
         />
       </div>
       {user && (
-        <div className="dashboard-topbar-user">
-          <span className="dashboard-topbar-user-name">{firstNameFromEmail(user.email)}</span>
-          <RoleBadge role={user.role} size="compact" />
+        <div className="dashboard-topbar-user-wrap" ref={menuRef}>
+          <div className="dashboard-topbar-user">
+            <button
+              type="button"
+              className="dashboard-topbar-user-trigger"
+              onClick={() => setMenuOpen((o) => !o)}
+              aria-expanded={menuOpen}
+              aria-haspopup="true"
+              aria-label="User menu"
+            >
+              <span className="dashboard-topbar-user-name">{firstNameFromEmail(user.email)}</span>
+              <RoleBadge role={user.role} size="compact" />
+              <span className="dashboard-topbar-user-chevron" aria-hidden>
+                {menuOpen ? "▲" : "▼"}
+              </span>
+            </button>
+          </div>
+          {menuOpen && (
+            <div className="dashboard-topbar-user-menu" role="menu">
+              <button
+                type="button"
+                className="dashboard-topbar-user-menu-item"
+                role="menuitem"
+                onClick={handleSignOut}
+              >
+                Sign out
+              </button>
+            </div>
+          )}
         </div>
       )}
     </header>

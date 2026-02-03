@@ -43,7 +43,7 @@ function groupAssignmentsByLocation(
   return result;
 }
 
-export type ActiveDragData = { pallets: number } | null;
+export type ActiveDragData = { pallets: number; weight?: number } | null;
 
 const CAPACITY_GREEN = 70;
 const CAPACITY_AMBER = 90;
@@ -84,18 +84,27 @@ const LorryColumnInner = memo(({ lorry, activeDragData = null, missingPalletsFal
 
   const used = lorry.usedPallets ?? 0;
   const capacity = Math.max(lorry.capacityPallets, 1);
+  const usedWeight = lorry.usedWeight ?? 0;
+  const capacityWeightKg = lorry.capacityWeightKg ?? 24_000;
   const percent = (used / capacity) * 100;
   const barColor = capacityBarColorClass(percent);
   const overCapacity = used > capacity;
   const showBackloadButton = used > 26 && onMarkLorryAsBackload && lorry.assignments.length > 0;
 
   const draggedPallets = activeDragData != null ? (activeDragData.pallets > 0 ? activeDragData.pallets : missingPalletsFallback) : 0;
+  const draggedWeight = activeDragData?.weight ?? 0;
   const previewUsed = isOver && activeDragData != null ? used + draggedPallets : used;
+  const previewUsedWeight = isOver && activeDragData != null ? usedWeight + draggedWeight : usedWeight;
   const previewPercent = (previewUsed / capacity) * 100;
   const previewBarColor = capacityBarColorClass(Math.min(100, previewPercent));
   const wouldExceedCapacity = isOver && activeDragData != null && previewUsed > capacity;
-  const invalidDrop = wouldExceedCapacity;
+  const wouldExceedWeight = isOver && activeDragData != null && previewUsedWeight > capacityWeightKg;
+  const invalidDrop = wouldExceedCapacity || wouldExceedWeight;
   const showPreview = isOver && activeDragData != null;
+  const weightPercent = capacityWeightKg > 0 ? (usedWeight / capacityWeightKg) * 100 : 0;
+  const weightBarColor = capacityBarColorClass(weightPercent);
+  const previewWeightPercent = capacityWeightKg > 0 ? Math.min(100, (previewUsedWeight / capacityWeightKg) * 100) : 0;
+  const previewWeightBarColor = capacityBarColorClass(previewWeightPercent);
   const isDragActive = activeDragData != null;
   const isEmpty = lorry.assignments.length === 0;
 
@@ -141,7 +150,7 @@ const LorryColumnInner = memo(({ lorry, activeDragData = null, missingPalletsFal
           title={wouldExceedCapacity ? "Over capacity" : undefined}
           aria-describedby={wouldExceedCapacity ? `lorry-${lorry.id}-overflow` : undefined}
         >
-          <div className="lorries-board-column-bar" role="progressbar" aria-valuenow={used} aria-valuemin={0} aria-valuemax={capacity} aria-label="Capacity">
+          <div className="lorries-board-column-bar" role="progressbar" aria-valuenow={used} aria-valuemin={0} aria-valuemax={capacity} aria-label="Pallets capacity">
             <div
               className={`lorries-board-column-bar-fill lorries-board-column-bar-fill--${showPreview ? previewBarColor : barColor}`}
               style={{ width: `${Math.min(100, (showPreview ? previewUsed / capacity : used / capacity) * 100)}%` }}
@@ -151,6 +160,27 @@ const LorryColumnInner = memo(({ lorry, activeDragData = null, missingPalletsFal
             <span id={`lorry-${lorry.id}-overflow`} className="lorries-board-column-overflow-tooltip" role="status">
               Over capacity
             </span>
+          )}
+        </div>
+        <div className="lorries-board-column-capacity lorries-board-column-capacity--weight">
+          <span className="lorries-board-column-capacity-text">
+            {usedWeight.toLocaleString()} / {capacityWeightKg.toLocaleString()} kg
+          </span>
+          {showPreview && (
+            <span className="lorries-board-column-capacity-preview" title={wouldExceedWeight ? "Over weight" : undefined}>
+              → {previewUsedWeight.toLocaleString()} (preview)
+            </span>
+          )}
+        </div>
+        <div className="lorries-board-column-bar-wrap" title={wouldExceedWeight ? "Over weight" : undefined}>
+          <div className="lorries-board-column-bar" role="progressbar" aria-valuenow={usedWeight} aria-valuemin={0} aria-valuemax={capacityWeightKg} aria-label="Weight capacity">
+            <div
+              className={`lorries-board-column-bar-fill lorries-board-column-bar-fill--${showPreview ? previewWeightBarColor : weightBarColor}`}
+              style={{ width: `${Math.min(100, (showPreview ? previewUsedWeight / capacityWeightKg : usedWeight / capacityWeightKg) * 100)}%` }}
+            />
+          </div>
+          {wouldExceedWeight && !wouldExceedCapacity && (
+            <span className="lorries-board-column-overflow-tooltip" role="status">Over weight</span>
           )}
         </div>
         {showBackloadButton && (
@@ -254,6 +284,7 @@ const AssignmentRow = ({ assignment, lorryId, showMissingPalletsChip = false, on
       consignmentId: assignment.consignmentId,
       jobId: assignment.consignment.id,
       pallets: assignment.effectivePallets,
+      weight: assignment.effectiveWeight ?? 0,
     },
   });
 

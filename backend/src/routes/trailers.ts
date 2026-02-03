@@ -57,6 +57,20 @@ trailersRouter.post("/api/trailers", async (req: AuthRequest, res: Response, nex
       return;
     }
     const { number, status, lorryId } = parsed.data;
+    if (lorryId) {
+      const lorry = await prisma.lorry.findUnique({
+        where: { id: lorryId },
+        select: { truckClass: true },
+      });
+      if (!lorry) {
+        res.status(400).json({ ok: false, error: "Lorry not found" });
+        return;
+      }
+      if ((lorry.truckClass ?? "Class1") !== "Class1") {
+        res.status(400).json({ ok: false, error: "Trailers can only be assigned to Class 1 trucks" });
+        return;
+      }
+    }
     const trailer = await prisma.trailer.create({
       data: {
         number,
@@ -91,6 +105,20 @@ trailersRouter.patch("/api/trailers/:id", async (req: AuthRequest, res: Response
       const scheduleCount = await prisma.trailerSchedule.count({ where: { trailerId: id } });
       if (scheduleCount > 0) {
         res.status(403).json({ ok: false, error: "Schedule exists: Management required to change status" });
+        return;
+      }
+    }
+    if (parsed.data.lorryId != null && parsed.data.lorryId !== "") {
+      const lorry = await prisma.lorry.findUnique({
+        where: { id: parsed.data.lorryId },
+        select: { truckClass: true },
+      });
+      if (!lorry) {
+        res.status(400).json({ ok: false, error: "Lorry not found" });
+        return;
+      }
+      if ((lorry.truckClass ?? "Class1") !== "Class1") {
+        res.status(400).json({ ok: false, error: "Trailers can only be assigned to Class 1 trucks" });
         return;
       }
     }
