@@ -252,21 +252,6 @@ const parseSelectTime = ($cell: cheerio.Cheerio<any>): string | null => {
   return `${hh}:${mm}`;
 };
 
-const readFormValue = ($cell: cheerio.Cheerio<any>): string => {
-  const input = $cell.find("input, textarea").first();
-  if (input.length) {
-    const value = input.attr("value") ?? input.text();
-    return (value ?? "").toString().trim();
-  }
-  const select = $cell.find("select").first();
-  if (select.length) {
-    const selected = select.find("option:selected").first();
-    if (selected.length) return selected.text().trim();
-    return select.find("option").first().text().trim();
-  }
-  return "";
-};
-
 const asyncPool = async <T, R>(
   limit: number,
   items: T[],
@@ -383,11 +368,10 @@ const extractRows = (
         ?? $(cell).attr("data-description")
         ?? $(cell).find("[data-text]").first().attr("data-text")
         ?? "";
-      const formValue = readFormValue($(cell));
       const value =
         preferDataTime && dataTime
           ? dataTime.trim()
-          : (selectedTime ?? (cellText || dataText.trim() || titleText.trim() || formValue));
+          : (selectedTime ?? (cellText || dataText.trim() || titleText.trim()));
       record[key] = value;
 
       if ($(cell).attr("data-id") === "flightinfo") {
