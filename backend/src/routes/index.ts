@@ -9,6 +9,7 @@ import { deliveryLocationsRouter } from "./deliveryLocations";
 import { fleetScheduleRouter } from "./fleetSchedule";
 import { consignmentsRouter } from "./consignments";
 import { lorriesRouter } from "./lorries";
+import { trailersRouter } from "./trailers";
 import { palletOverridesRouter } from "./palletOverrides";
 import { assignmentsRouter } from "./assignments";
 import { auditLogsRouter } from "./auditLogs";
@@ -26,6 +27,7 @@ routesRouter.get("/api/version", (_req, res) => {
 routesRouter.use("/api", authMiddleware);
 routesRouter.use("/", consignmentsRouter);
 routesRouter.use("/", lorriesRouter);
+routesRouter.use("/", trailersRouter);
 routesRouter.use("/", palletOverridesRouter);
 routesRouter.use("/", assignmentsRouter);
 

@@ -2518,6 +2518,11 @@ button:disabled {
   font-weight: 600;
 }
 
+.fleet-card-subtitle {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
 .fleet-card-status {
   font-size: 0.75rem;
   font-weight: 700;
@@ -2542,6 +2547,22 @@ button:disabled {
 
 .fleet-card-status.service {
   color: #e6a23c;
+}
+
+.fleet-card-status.trailer.on_road {
+  color: #37d27a;
+}
+
+.fleet-card-status.trailer.off_road {
+  color: #f05a5a;
+}
+
+.fleet-card-status.trailer.storage {
+  color: #e6a23c;
+}
+
+.fleet-card-status.trailer.spare {
+  color: #8fa5c7;
 }
 
 .fleet-toggle-btn {

@@ -11,6 +11,23 @@ type LorryRow = {
   status?: "on" | "off" | "service";
 };
 
+type TrailerStatus = "on_road" | "off_road" | "storage" | "spare";
+
+type TrailerRow = {
+  id: string;
+  number: string;
+  status: TrailerStatus;
+  lorryId?: string | null;
+  lorry?: { id: string; name: string } | null;
+};
+
+const TRAILER_STATUS_LABELS: Record<TrailerStatus, string> = {
+  on_road: "ON ROAD",
+  off_road: "OFF ROAD",
+  storage: "STORAGE",
+  spare: "SPARE",
+};
+
 const SCHEDULE_TYPES = ["off_road", "service"] as const;
 type ScheduleType = (typeof SCHEDULE_TYPES)[number];
 const SCHEDULE_TYPE_LABELS: Record<string, string> = {
@@ -51,8 +68,11 @@ function fromDatetimeLocal(s: string): string {
 
 export const FleetPage = () => {
   const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState<"trucks" | "trailers">("trucks");
   const [lorries, setLorries] = useState<LorryRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [trailers, setTrailers] = useState<TrailerRow[]>([]);
+  const [trailersLoading, setTrailersLoading] = useState(false);
   const [error, setError] = useState("");
   const [statusById, setStatusById] = useState<Record<string, "on" | "off" | "service">>({});
 
@@ -89,6 +109,20 @@ export const FleetPage = () => {
       setScheduleLoading(false);
     }
   }, [canToggleStatus]);
+
+  const loadTrailers = useCallback(async () => {
+    setTrailersLoading(true);
+    setError("");
+    try {
+      const items = await apiGet<TrailerRow[]>("/api/trailers");
+      const sorted = (Array.isArray(items) ? items : []).sort((a, b) => a.number.localeCompare(b.number));
+      setTrailers(sorted);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load trailers");
+    } finally {
+      setTrailersLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -130,6 +164,10 @@ export const FleetPage = () => {
   useEffect(() => {
     if (canToggleStatus) loadSchedule();
   }, [canToggleStatus, loadSchedule]);
+
+  useEffect(() => {
+    if (activeTab === "trailers" || activeTab === "trucks") loadTrailers();
+  }, [activeTab, loadTrailers]);
 
   const handleAddSchedule = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -208,258 +246,351 @@ export const FleetPage = () => {
     <>
       <h2 className="dashboard-page-title">Fleet</h2>
       <div className="dashboard-page-content">
+        <nav className="management-tabs" aria-label="Fleet sections">
+          <button
+            type="button"
+            className={`management-tab${activeTab === "trucks" ? " management-tab--active" : ""}`}
+            onClick={() => setActiveTab("trucks")}
+          >
+            Trucks
+          </button>
+          <button
+            type="button"
+            className={`management-tab${activeTab === "trailers" ? " management-tab--active" : ""}`}
+            onClick={() => setActiveTab("trailers")}
+          >
+            Trailers
+          </button>
+        </nav>
+
         {error ? (
           <div className="management-error" role="alert">
             {error}
           </div>
         ) : null}
 
-        {loading ? (
-          <p className="management-loading">Loading fleet…</p>
-        ) : lorries.length === 0 ? (
-          <p className="management-loading">No trucks yet.</p>
-        ) : (
-          <div className="fleet-grid">
-            {lorries.map((lorry) => {
-              const status = statusById[lorry.id] ?? "on";
-              const used = lorry.usedPallets ?? 0;
-              const capacity = Math.max(lorry.capacityPallets, 1);
-              const percent = Math.min(100, Math.round((used / capacity) * 100));
-              const toggleStatus = async () => {
-                if (!canToggleStatus) return;
-                const nextStatus = status === "on" ? "off" : "on";
-                try {
-                  await apiPatch(`/api/lorries/${lorry.id}/status`, { status: nextStatus });
-                  setStatusById((prev) => ({ ...prev, [lorry.id]: nextStatus }));
-                } catch (e) {
-                  setError(e instanceof Error ? e.message : "Failed to update status");
-                }
-              };
+        {activeTab === "trucks" && (
+          <>
+            {loading ? (
+              <p className="management-loading">Loading fleet…</p>
+            ) : lorries.length === 0 ? (
+              <p className="management-loading">No trucks yet.</p>
+            ) : (
+              <div className="fleet-grid">
+                {lorries.map((lorry) => {
+                  const status = statusById[lorry.id] ?? "on";
+                  const used = lorry.usedPallets ?? 0;
+                  const capacity = Math.max(lorry.capacityPallets, 1);
+                  const percent = Math.min(100, Math.round((used / capacity) * 100));
+                  const attachedTrailers = trailers
+                    .filter((t) => t.lorryId === lorry.id)
+                    .map((t) => t.number);
+                  const toggleStatus = async () => {
+                    if (!canToggleStatus) return;
+                    const nextStatus = status === "on" ? "off" : "on";
+                    try {
+                      await apiPatch(`/api/lorries/${lorry.id}/status`, { status: nextStatus });
+                      setStatusById((prev) => ({ ...prev, [lorry.id]: nextStatus }));
+                    } catch (e) {
+                      setError(e instanceof Error ? e.message : "Failed to update status");
+                    }
+                  };
 
-              const statusLabel = status === "on" ? "ON ROAD" : status === "service" ? "SERVICE" : "OFF ROAD";
-              const statusMeta = status === "on" ? "Available" : status === "service" ? "Service" : "Unavailable";
+                  const statusLabel = status === "on" ? "ON ROAD" : status === "service" ? "SERVICE" : "OFF ROAD";
+                  const statusMeta = status === "on" ? "Available" : status === "service" ? "Service" : "Unavailable";
 
-              return (
-                <article key={lorry.id} className="fleet-card">
-                  <div className="fleet-card-header">
-                    <h3 className="fleet-card-title">{lorry.name}</h3>
-                    <span className={`fleet-card-status ${status}`}>
-                      {statusLabel}
-                    </span>
-                  </div>
-                  <div className="fleet-card-status-row">
-                    <span className="fleet-card-badge">
-                      {lorry.assignments?.length ?? 0} stops
-                    </span>
-                    {canToggleStatus ? (
-                      <button
-                        type="button"
-                        className="fleet-toggle-btn"
-                        onClick={toggleStatus}
+                  return (
+                    <article key={lorry.id} className="fleet-card">
+                      <div className="fleet-card-header">
+                        <h3 className="fleet-card-title">{lorry.name}</h3>
+                        <span className={`fleet-card-status ${status}`}>
+                          {statusLabel}
+                        </span>
+                      </div>
+                      {attachedTrailers.length > 0 && (
+                        <div className="fleet-card-subtitle">
+                          Trailer {attachedTrailers.join(", ")}
+                        </div>
+                      )}
+                      <div className="fleet-card-status-row">
+                        <span className="fleet-card-badge">
+                          {lorry.assignments?.length ?? 0} stops
+                        </span>
+                        {canToggleStatus ? (
+                          <button
+                            type="button"
+                            className="fleet-toggle-btn"
+                            onClick={toggleStatus}
+                          >
+                            Toggle
+                          </button>
+                        ) : null}
+                      </div>
+                      <div className="fleet-card-meta">
+                        <span>Status</span>
+                        <span>{statusMeta}</span>
+                      </div>
+                      <div className="fleet-card-meta">
+                        <span>Capacity</span>
+                        <span>{lorry.capacityPallets}</span>
+                      </div>
+                      <div className="fleet-card-meta">
+                        <span>Used</span>
+                        <span>{used}</span>
+                      </div>
+                      <div className="fleet-card-bar">
+                        <div className="fleet-card-bar-fill" style={{ width: `${percent}%` }} />
+                      </div>
+                      <div className="fleet-card-footnote">
+                        {used} / {capacity} slots used
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+
+            {canToggleStatus && (
+              <>
+                <h3 className="management-section-title" style={{ marginTop: "2rem" }}>Schedule</h3>
+                <p className="management-intro">
+                  Plan when trucks are off-road or in for service so you can plan accordingly.
+                </p>
+
+                <section className="management-section">
+                  <h4 className="management-section-title">Add schedule entry</h4>
+                  <form className="management-create-form" onSubmit={handleAddSchedule}>
+                    <label>
+                      Truck
+                      <select
+                        value={scheduleLorryId}
+                        onChange={(e) => setScheduleLorryId(e.target.value)}
+                        className="management-select"
+                        required
                       >
-                        Toggle
-                      </button>
-                    ) : null}
-                  </div>
-                  <div className="fleet-card-meta">
-                    <span>Status</span>
-                    <span>{statusMeta}</span>
-                  </div>
-                  <div className="fleet-card-meta">
-                    <span>Capacity</span>
-                    <span>{lorry.capacityPallets}</span>
-                  </div>
-                  <div className="fleet-card-meta">
-                    <span>Used</span>
-                    <span>{used}</span>
-                  </div>
-                  <div className="fleet-card-bar">
-                    <div className="fleet-card-bar-fill" style={{ width: `${percent}%` }} />
-                  </div>
-                  <div className="fleet-card-footnote">
-                    {used} / {capacity} slots used
-                  </div>
-                </article>
-              );
-            })}
-          </div>
+                        <option value="">— Select truck —</option>
+                        {lorries.map((l) => (
+                          <option key={l.id} value={l.id}>{l.name}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      Type
+                      <select
+                        value={scheduleType}
+                        onChange={(e) => setScheduleType(e.target.value as ScheduleType)}
+                        className="management-select"
+                      >
+                        {SCHEDULE_TYPES.map((t) => (
+                          <option key={t} value={t}>{SCHEDULE_TYPE_LABELS[t]}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      Start (date & time)
+                      <input
+                        type="datetime-local"
+                        value={scheduleStartAt}
+                        onChange={(e) => setScheduleStartAt(e.target.value)}
+                        className="management-input"
+                        required
+                      />
+                    </label>
+                    <label>
+                      End (date & time, optional)
+                      <input
+                        type="datetime-local"
+                        value={scheduleEndAt}
+                        onChange={(e) => setScheduleEndAt(e.target.value)}
+                        className="management-input"
+                      />
+                    </label>
+                    <label>
+                      Notes (optional)
+                      <input
+                        type="text"
+                        value={scheduleNotes}
+                        onChange={(e) => setScheduleNotes(e.target.value)}
+                        placeholder="e.g. MOT, annual service"
+                        className="management-input"
+                      />
+                    </label>
+                    <button type="submit" className="management-btn management-btn-primary" disabled={addingSchedule || lorries.length === 0}>
+                      {addingSchedule ? "Adding…" : "Add"}
+                    </button>
+                  </form>
+                </section>
+
+                <section className="management-section">
+                  <h4 className="management-section-title">Scheduled entries</h4>
+                  {scheduleLoading ? (
+                    <p className="management-loading">Loading schedule…</p>
+                  ) : scheduleEntries.length === 0 ? (
+                    <p className="management-loading">No schedule entries yet.</p>
+                  ) : (
+                    <div className="management-table-wrap">
+                      <table className="management-table">
+                        <thead>
+                          <tr>
+                            <th>Truck</th>
+                            <th>Type</th>
+                            <th>Start</th>
+                            <th>End</th>
+                            <th>Notes</th>
+                            <th>Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {scheduleEntries.map((entry) => (
+                            <tr key={entry.id}>
+                              <td>{entry.lorry?.name ?? entry.lorryId}</td>
+                              <td>
+                                {editingScheduleId === entry.id ? (
+                                  <select
+                                    value={editScheduleType}
+                                    onChange={(e) => setEditScheduleType(e.target.value as ScheduleType)}
+                                    className="management-select management-select-small"
+                                  >
+                                    {SCHEDULE_TYPES.map((t) => (
+                                      <option key={t} value={t}>{SCHEDULE_TYPE_LABELS[t]}</option>
+                                    ))}
+                                  </select>
+                                ) : (
+                                  SCHEDULE_TYPE_LABELS[entry.type] ?? entry.type
+                                )}
+                              </td>
+                              <td>
+                                {editingScheduleId === entry.id ? (
+                                  <input
+                                    type="datetime-local"
+                                    value={editScheduleStartAt}
+                                    onChange={(e) => setEditScheduleStartAt(e.target.value)}
+                                    className="management-input management-input-inline"
+                                  />
+                                ) : (
+                                  new Date(entry.startAt).toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" })
+                                )}
+                              </td>
+                              <td>
+                                {editingScheduleId === entry.id ? (
+                                  <input
+                                    type="datetime-local"
+                                    value={editScheduleEndAt}
+                                    onChange={(e) => setEditScheduleEndAt(e.target.value)}
+                                    className="management-input management-input-inline"
+                                  />
+                                ) : entry.endAt ? (
+                                  new Date(entry.endAt).toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" })
+                                ) : (
+                                  "—"
+                                )}
+                              </td>
+                              <td>
+                                {editingScheduleId === entry.id ? (
+                                  <input
+                                    type="text"
+                                    value={editScheduleNotes}
+                                    onChange={(e) => setEditScheduleNotes(e.target.value)}
+                                    className="management-input management-input-inline"
+                                    placeholder="Optional"
+                                  />
+                                ) : (
+                                  entry.notes ?? "—"
+                                )}
+                              </td>
+                              <td>
+                                {editingScheduleId === entry.id ? (
+                                  <>
+                                    <button type="button" className="management-btn management-btn-small" onClick={handleUpdateSchedule}>Save</button>
+                                    <button type="button" className="management-btn management-btn-small" onClick={() => setEditingScheduleId(null)}>Cancel</button>
+                                  </>
+                                ) : (
+                                  <>
+                                    <button type="button" className="management-btn management-btn-small management-btn-link" onClick={() => startEditSchedule(entry)}>Edit</button>
+                                    <button
+                                      type="button"
+                                      className="management-btn management-btn-small management-btn-danger"
+                                      onClick={() => handleDeleteSchedule(entry.id)}
+                                      disabled={deletingScheduleId === entry.id}
+                                    >
+                                      {deletingScheduleId === entry.id ? "Deleting…" : "Remove"}
+                                    </button>
+                                  </>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </section>
+              </>
+            )}
+          </>
         )}
 
-        {canToggleStatus && (
+        {activeTab === "trailers" && (
           <>
-            <h3 className="management-section-title" style={{ marginTop: "2rem" }}>Schedule</h3>
-            <p className="management-intro">
-              Plan when trucks are off-road or in for service so you can plan accordingly.
-            </p>
+            {trailersLoading ? (
+              <p className="management-loading">Loading trailers…</p>
+            ) : trailers.length === 0 ? (
+              <p className="management-loading">No trailers yet.</p>
+            ) : (
+              <div className="fleet-grid">
+                {trailers.map((trailer) => {
+                  const status = trailer.status ?? "spare";
+                  const updateStatus = async (nextStatus: TrailerStatus) => {
+                    if (!canToggleStatus) return;
+                    try {
+                      await apiPatch(`/api/trailers/${trailer.id}`, { status: nextStatus });
+                      setTrailers((prev) =>
+                        prev.map((t) => (t.id === trailer.id ? { ...t, status: nextStatus } : t)),
+                      );
+                    } catch (e) {
+                      setError(e instanceof Error ? e.message : "Failed to update trailer status");
+                    }
+                  };
 
-            <section className="management-section">
-              <h4 className="management-section-title">Add schedule entry</h4>
-              <form className="management-create-form" onSubmit={handleAddSchedule}>
-                <label>
-                  Truck
-                  <select
-                    value={scheduleLorryId}
-                    onChange={(e) => setScheduleLorryId(e.target.value)}
-                    className="management-select"
-                    required
-                  >
-                    <option value="">— Select truck —</option>
-                    {lorries.map((l) => (
-                      <option key={l.id} value={l.id}>{l.name}</option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  Type
-                  <select
-                    value={scheduleType}
-                    onChange={(e) => setScheduleType(e.target.value as ScheduleType)}
-                    className="management-select"
-                  >
-                    {SCHEDULE_TYPES.map((t) => (
-                      <option key={t} value={t}>{SCHEDULE_TYPE_LABELS[t]}</option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  Start (date & time)
-                  <input
-                    type="datetime-local"
-                    value={scheduleStartAt}
-                    onChange={(e) => setScheduleStartAt(e.target.value)}
-                    className="management-input"
-                    required
-                  />
-                </label>
-                <label>
-                  End (date & time, optional)
-                  <input
-                    type="datetime-local"
-                    value={scheduleEndAt}
-                    onChange={(e) => setScheduleEndAt(e.target.value)}
-                    className="management-input"
-                  />
-                </label>
-                <label>
-                  Notes (optional)
-                  <input
-                    type="text"
-                    value={scheduleNotes}
-                    onChange={(e) => setScheduleNotes(e.target.value)}
-                    placeholder="e.g. MOT, annual service"
-                    className="management-input"
-                  />
-                </label>
-                <button type="submit" className="management-btn management-btn-primary" disabled={addingSchedule || lorries.length === 0}>
-                  {addingSchedule ? "Adding…" : "Add"}
-                </button>
-              </form>
-            </section>
-
-            <section className="management-section">
-              <h4 className="management-section-title">Scheduled entries</h4>
-              {scheduleLoading ? (
-                <p className="management-loading">Loading schedule…</p>
-              ) : scheduleEntries.length === 0 ? (
-                <p className="management-loading">No schedule entries yet.</p>
-              ) : (
-                <div className="management-table-wrap">
-                  <table className="management-table">
-                    <thead>
-                      <tr>
-                        <th>Truck</th>
-                        <th>Type</th>
-                        <th>Start</th>
-                        <th>End</th>
-                        <th>Notes</th>
-                        <th>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {scheduleEntries.map((entry) => (
-                        <tr key={entry.id}>
-                          <td>{entry.lorry?.name ?? entry.lorryId}</td>
-                          <td>
-                            {editingScheduleId === entry.id ? (
-                              <select
-                                value={editScheduleType}
-                                onChange={(e) => setEditScheduleType(e.target.value as ScheduleType)}
-                                className="management-select management-select-small"
-                              >
-                                {SCHEDULE_TYPES.map((t) => (
-                                  <option key={t} value={t}>{SCHEDULE_TYPE_LABELS[t]}</option>
-                                ))}
-                              </select>
-                            ) : (
-                              SCHEDULE_TYPE_LABELS[entry.type] ?? entry.type
-                            )}
-                          </td>
-                          <td>
-                            {editingScheduleId === entry.id ? (
-                              <input
-                                type="datetime-local"
-                                value={editScheduleStartAt}
-                                onChange={(e) => setEditScheduleStartAt(e.target.value)}
-                                className="management-input management-input-inline"
-                              />
-                            ) : (
-                              new Date(entry.startAt).toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" })
-                            )}
-                          </td>
-                          <td>
-                            {editingScheduleId === entry.id ? (
-                              <input
-                                type="datetime-local"
-                                value={editScheduleEndAt}
-                                onChange={(e) => setEditScheduleEndAt(e.target.value)}
-                                className="management-input management-input-inline"
-                              />
-                            ) : entry.endAt ? (
-                              new Date(entry.endAt).toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" })
-                            ) : (
-                              "—"
-                            )}
-                          </td>
-                          <td>
-                            {editingScheduleId === entry.id ? (
-                              <input
-                                type="text"
-                                value={editScheduleNotes}
-                                onChange={(e) => setEditScheduleNotes(e.target.value)}
-                                className="management-input management-input-inline"
-                                placeholder="Optional"
-                              />
-                            ) : (
-                              entry.notes ?? "—"
-                            )}
-                          </td>
-                          <td>
-                            {editingScheduleId === entry.id ? (
-                              <>
-                                <button type="button" className="management-btn management-btn-small" onClick={handleUpdateSchedule}>Save</button>
-                                <button type="button" className="management-btn management-btn-small" onClick={() => setEditingScheduleId(null)}>Cancel</button>
-                              </>
-                            ) : (
-                              <>
-                                <button type="button" className="management-btn management-btn-small management-btn-link" onClick={() => startEditSchedule(entry)}>Edit</button>
-                                <button
-                                  type="button"
-                                  className="management-btn management-btn-small management-btn-danger"
-                                  onClick={() => handleDeleteSchedule(entry.id)}
-                                  disabled={deletingScheduleId === entry.id}
-                                >
-                                  {deletingScheduleId === entry.id ? "Deleting…" : "Remove"}
-                                </button>
-                              </>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </section>
+                  return (
+                    <article key={trailer.id} className="fleet-card">
+                      <div className="fleet-card-header">
+                        <h3 className="fleet-card-title">{trailer.number}</h3>
+                        <span className={`fleet-card-status trailer ${status}`}>
+                          {TRAILER_STATUS_LABELS[status]}
+                        </span>
+                      </div>
+                      <div className="fleet-card-status-row">
+                        <span className="fleet-card-badge">
+                          {trailer.lorry?.name ? `Attached: ${trailer.lorry.name}` : "Unassigned"}
+                        </span>
+                        {canToggleStatus ? (
+                          <select
+                            className="management-select management-select-small"
+                            value={status}
+                            onChange={(e) => updateStatus(e.target.value as TrailerStatus)}
+                          >
+                            {Object.keys(TRAILER_STATUS_LABELS).map((key) => (
+                              <option key={key} value={key}>
+                                {TRAILER_STATUS_LABELS[key as TrailerStatus]}
+                              </option>
+                            ))}
+                          </select>
+                        ) : null}
+                      </div>
+                      <div className="fleet-card-meta">
+                        <span>Status</span>
+                        <span>{TRAILER_STATUS_LABELS[status]}</span>
+                      </div>
+                      <div className="fleet-card-meta">
+                        <span>Truck</span>
+                        <span>{trailer.lorry?.name ?? "—"}</span>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
           </>
         )}
       </div>

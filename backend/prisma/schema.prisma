@@ -49,9 +49,24 @@ model Lorry {
   updatedAt       DateTime     @updatedAt
 
   assignments     Assignment[]
+  trailers        Trailer[]
   scheduleEntries FleetSchedule[]
 
   @@index([name])
+}
+
+model Trailer {
+  id        String   @id @default(cuid())
+  number    String
+  status    String   @default("spare") // on_road | off_road | storage | spare
+  lorryId   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  lorry     Lorry?   @relation(fields: [lorryId], references: [id], onDelete: SetNull)
+
+  @@index([number])
+  @@index([lorryId])
 }
 
 model FleetSchedule {
