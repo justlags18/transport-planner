@@ -98,7 +98,7 @@ export const ManagementPage = () => {
   const role = currentUser?.role ?? "Clerk";
   const isDeveloper = currentUser?.role === "Developer";
   const showUsersTrucks = canAccessUsersOrTrucks(role);
-  const [activeTab, setActiveTab] = useState<"consignments" | "users" | "trucks" | "customer-pref" | "delivery-locations">("customer-pref");
+  const [activeTab, setActiveTab] = useState<"consignments" | "users" | "trucks" | "trailers" | "customer-pref" | "delivery-locations">("customer-pref");
 
   // Consignments tab is Developer-only; if role changes away from Developer, switch off it
   useEffect(() => {
@@ -724,6 +724,13 @@ export const ManagementPage = () => {
             >
               Trucks
             </button>
+            <button
+              type="button"
+              className={`management-tab${activeTab === "trailers" ? " management-tab--active" : ""}`}
+              onClick={() => setActiveTab("trailers")}
+            >
+              Trailers
+            </button>
           </>
         )}
       </nav>
@@ -1131,6 +1138,18 @@ export const ManagementPage = () => {
                 </table>
               </div>
             )}
+          </section>
+        </>
+      )}
+
+      {activeTab === "trailers" && (
+        <>
+          <p className="management-intro">
+            Trailer management will live here.
+          </p>
+          <section className="management-section">
+            <h3 className="management-section-title">Trailers</h3>
+            <p className="management-loading">No trailers loaded yet.</p>
           </section>
         </>
       )}
