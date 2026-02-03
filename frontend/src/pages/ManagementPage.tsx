@@ -19,14 +19,7 @@ const TRUCK_CLASS_CAPACITY: Record<string, number> = {
   Vans: 3,
 };
 
-const TRAILER_STATUSES = ["on_road", "off_road", "storage", "spare"] as const;
-type TrailerStatus = (typeof TRAILER_STATUSES)[number];
-const TRAILER_STATUS_LABELS: Record<TrailerStatus, string> = {
-  on_road: "On road",
-  off_road: "Off road",
-  storage: "Storage",
-  spare: "Spare",
-};
+type TrailerStatus = "on_road" | "off_road" | "storage" | "spare";
 
 const DELIVERY_TYPES = ["deliver", "collection", "self_collect"] as const;
 type DeliveryType = (typeof DELIVERY_TYPES)[number];
@@ -156,13 +149,7 @@ export const ManagementPage = () => {
   const [trailers, setTrailers] = useState<TrailerRow[]>([]);
   const [trailersLoading, setTrailersLoading] = useState(false);
   const [trailerNumber, setTrailerNumber] = useState("");
-  const [trailerStatus, setTrailerStatus] = useState<TrailerStatus>("spare");
-  const [trailerLorryId, setTrailerLorryId] = useState("");
   const [addingTrailer, setAddingTrailer] = useState(false);
-  const [editingTrailerId, setEditingTrailerId] = useState<string | null>(null);
-  const [editTrailerNumber, setEditTrailerNumber] = useState("");
-  const [editTrailerStatus, setEditTrailerStatus] = useState<TrailerStatus>("spare");
-  const [editTrailerLorryId, setEditTrailerLorryId] = useState("");
   const [deletingTrailerId, setDeletingTrailerId] = useState<string | null>(null);
 
   // Customer Pref state
@@ -372,7 +359,7 @@ export const ManagementPage = () => {
   }, [activeTab, loadUsers]);
 
   useEffect(() => {
-    if (activeTab === "trucks" || activeTab === "trailers") {
+    if (activeTab === "trucks") {
       loadLorries();
     }
   }, [activeTab, loadLorries]);
@@ -546,44 +533,13 @@ export const ManagementPage = () => {
     try {
       const trailer = await apiPost<TrailerRow>("/api/trailers", {
         number: trailerNumber.trim(),
-        status: trailerStatus,
-        lorryId: trailerLorryId || null,
       });
       setTrailers((prev) => [...prev, trailer].sort((a, b) => a.number.localeCompare(b.number)));
       setTrailerNumber("");
-      setTrailerStatus("spare");
-      setTrailerLorryId("");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to add trailer");
     } finally {
       setAddingTrailer(false);
-    }
-  };
-
-  const startEditTrailer = (t: TrailerRow) => {
-    setEditingTrailerId(t.id);
-    setEditTrailerNumber(t.number);
-    setEditTrailerStatus(t.status ?? "spare");
-    setEditTrailerLorryId(t.lorryId ?? "");
-  };
-
-  const handleUpdateTrailer = async () => {
-    if (!editingTrailerId) return;
-    setError("");
-    try {
-      const updated = await apiPatch<TrailerRow>(`/api/trailers/${editingTrailerId}`, {
-        number: editTrailerNumber.trim(),
-        status: editTrailerStatus,
-        lorryId: editTrailerLorryId || null,
-      });
-      setTrailers((prev) =>
-        prev.map((t) => (t.id === editingTrailerId ? updated : t)).sort((a, b) =>
-          a.number.localeCompare(b.number),
-        ),
-      );
-      setEditingTrailerId(null);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to update trailer");
     }
   };
 
@@ -1260,7 +1216,7 @@ export const ManagementPage = () => {
       {activeTab === "trailers" && (
         <>
           <p className="management-intro">
-            Add, edit, or remove trailers and attach them to trucks.
+            Add trailers here. Status and truck attachments live under Fleet → Trailers.
           </p>
           <section className="management-section">
             <h3 className="management-section-title">Add trailer</h3>
@@ -1275,33 +1231,6 @@ export const ManagementPage = () => {
                   required
                   className="management-input"
                 />
-              </label>
-              <label>
-                Status
-                <select
-                  value={trailerStatus}
-                  onChange={(e) => setTrailerStatus(e.target.value as TrailerStatus)}
-                  className="management-select"
-                >
-                  {TRAILER_STATUSES.map((status) => (
-                    <option key={status} value={status}>
-                      {TRAILER_STATUS_LABELS[status]}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                Attached truck (optional)
-                <select
-                  value={trailerLorryId}
-                  onChange={(e) => setTrailerLorryId(e.target.value)}
-                  className="management-select"
-                >
-                  <option value="">— Unassigned —</option>
-                  {lorries.map((l) => (
-                    <option key={l.id} value={l.id}>{l.name}</option>
-                  ))}
-                </select>
               </label>
               <button type="submit" className="management-btn management-btn-primary" disabled={addingTrailer}>
                 {addingTrailer ? "Adding…" : "Add trailer"}
@@ -1319,78 +1248,22 @@ export const ManagementPage = () => {
                   <thead>
                     <tr>
                       <th>Number</th>
-                      <th>Status</th>
-                      <th>Attached truck</th>
                       <th>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {trailers.map((t) => (
                       <tr key={t.id}>
+                        <td>{t.number}</td>
                         <td>
-                          {editingTrailerId === t.id ? (
-                            <input
-                              type="text"
-                              value={editTrailerNumber}
-                              onChange={(e) => setEditTrailerNumber(e.target.value)}
-                              className="management-input management-input-inline"
-                            />
-                          ) : (
-                            t.number
-                          )}
-                        </td>
-                        <td>
-                          {editingTrailerId === t.id ? (
-                            <select
-                              value={editTrailerStatus}
-                              onChange={(e) => setEditTrailerStatus(e.target.value as TrailerStatus)}
-                              className="management-select management-select-small"
-                            >
-                              {TRAILER_STATUSES.map((status) => (
-                                <option key={status} value={status}>
-                                  {TRAILER_STATUS_LABELS[status]}
-                                </option>
-                              ))}
-                            </select>
-                          ) : (
-                            TRAILER_STATUS_LABELS[t.status] ?? t.status
-                          )}
-                        </td>
-                        <td>
-                          {editingTrailerId === t.id ? (
-                            <select
-                              value={editTrailerLorryId}
-                              onChange={(e) => setEditTrailerLorryId(e.target.value)}
-                              className="management-select management-select-small"
-                            >
-                              <option value="">— Unassigned —</option>
-                              {lorries.map((l) => (
-                                <option key={l.id} value={l.id}>{l.name}</option>
-                              ))}
-                            </select>
-                          ) : (
-                            t.lorry?.name ?? "—"
-                          )}
-                        </td>
-                        <td>
-                          {editingTrailerId === t.id ? (
-                            <>
-                              <button type="button" className="management-btn management-btn-small" onClick={handleUpdateTrailer}>Save</button>
-                              <button type="button" className="management-btn management-btn-small" onClick={() => setEditingTrailerId(null)}>Cancel</button>
-                            </>
-                          ) : (
-                            <>
-                              <button type="button" className="management-btn management-btn-small management-btn-link" onClick={() => startEditTrailer(t)}>Edit</button>
-                              <button
-                                type="button"
-                                className="management-btn management-btn-small management-btn-danger"
-                                onClick={() => handleDeleteTrailer(t.id)}
-                                disabled={deletingTrailerId === t.id}
-                              >
-                                {deletingTrailerId === t.id ? "Deleting…" : "Remove"}
-                              </button>
-                            </>
-                          )}
+                          <button
+                            type="button"
+                            className="management-btn management-btn-small management-btn-danger"
+                            onClick={() => handleDeleteTrailer(t.id)}
+                            disabled={deletingTrailerId === t.id}
+                          >
+                            {deletingTrailerId === t.id ? "Deleting…" : "Remove"}
+                          </button>
                         </td>
                       </tr>
                     ))}

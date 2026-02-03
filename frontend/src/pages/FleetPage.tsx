@@ -540,6 +540,8 @@ export const FleetPage = () => {
               <div className="fleet-grid">
                 {trailers.map((trailer) => {
                   const status = trailer.status ?? "spare";
+                  const statusLabel = TRAILER_STATUS_LABELS[status] ?? status;
+                  const attachedLabel = trailer.lorry?.name ?? "Unassigned";
                   const updateStatus = async (nextStatus: TrailerStatus) => {
                     if (!canToggleStatus) return;
                     try {
@@ -557,16 +559,16 @@ export const FleetPage = () => {
                       <div className="fleet-card-header">
                         <h3 className="fleet-card-title">{trailer.number}</h3>
                         <span className={`fleet-card-status trailer ${status}`}>
-                          {TRAILER_STATUS_LABELS[status]}
+                          {statusLabel}
                         </span>
                       </div>
                       <div className="fleet-card-status-row">
                         <span className="fleet-card-badge">
-                          {trailer.lorry?.name ? `Attached: ${trailer.lorry.name}` : "Unassigned"}
+                          {attachedLabel === "Unassigned" ? "Unassigned" : `Attached: ${attachedLabel}`}
                         </span>
                         {canToggleStatus ? (
                           <select
-                            className="management-select management-select-small"
+                            className="fleet-toggle-select management-select management-select-small"
                             value={status}
                             onChange={(e) => updateStatus(e.target.value as TrailerStatus)}
                           >
@@ -580,11 +582,11 @@ export const FleetPage = () => {
                       </div>
                       <div className="fleet-card-meta">
                         <span>Status</span>
-                        <span>{TRAILER_STATUS_LABELS[status]}</span>
+                        <span>{statusLabel}</span>
                       </div>
                       <div className="fleet-card-meta">
                         <span>Truck</span>
-                        <span>{trailer.lorry?.name ?? "—"}</span>
+                        <span>{attachedLabel}</span>
                       </div>
                     </article>
                   );
