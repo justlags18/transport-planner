@@ -2521,6 +2521,7 @@ button:disabled {
 .fleet-card-subtitle {
   font-size: 0.78rem;
   color: var(--text-secondary);
+  font-weight: 700;
 }
 
 .fleet-card-status {

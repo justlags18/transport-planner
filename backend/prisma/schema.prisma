@@ -64,9 +64,26 @@ model Trailer {
   updatedAt DateTime @updatedAt
 
   lorry     Lorry?   @relation(fields: [lorryId], references: [id], onDelete: SetNull)
+  scheduleEntries TrailerSchedule[]
 
   @@index([number])
   @@index([lorryId])
+}
+
+model TrailerSchedule {
+  id        String   @id @default(cuid())
+  trailerId String
+  type      String   // "on_road" | "off_road" | "storage" | "spare"
+  startAt   DateTime
+  endAt     DateTime?
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  trailer   Trailer  @relation(fields: [trailerId], references: [id], onDelete: Cascade)
+
+  @@index([trailerId])
+  @@index([startAt])
 }
 
 model FleetSchedule {

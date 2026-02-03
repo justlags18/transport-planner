@@ -7,6 +7,7 @@ import { usersRouter } from "./users";
 import { customerPrefsRouter } from "./customerPrefs";
 import { deliveryLocationsRouter } from "./deliveryLocations";
 import { fleetScheduleRouter } from "./fleetSchedule";
+import { trailerScheduleRouter } from "./trailerSchedule";
 import { consignmentsRouter } from "./consignments";
 import { lorriesRouter } from "./lorries";
 import { trailersRouter } from "./trailers";
@@ -36,6 +37,7 @@ routesRouter.use(requirePlannerOrAbove);
 routesRouter.use("/", customerPrefsRouter);
 routesRouter.use("/", deliveryLocationsRouter);
 routesRouter.use("/", fleetScheduleRouter);
+routesRouter.use("/", trailerScheduleRouter);
 
 routesRouter.use(requireManagementOrDeveloper);
 routesRouter.use("/", usersRouter);

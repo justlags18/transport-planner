@@ -28,6 +28,15 @@ const TRAILER_STATUS_LABELS: Record<TrailerStatus, string> = {
   spare: "SPARE",
 };
 
+const TRAILER_SCHEDULE_TYPES = ["on_road", "off_road", "storage", "spare"] as const;
+type TrailerScheduleType = (typeof TRAILER_SCHEDULE_TYPES)[number];
+const TRAILER_SCHEDULE_LABELS: Record<TrailerScheduleType, string> = {
+  on_road: "On road",
+  off_road: "Off road",
+  storage: "Storage",
+  spare: "Spare",
+};
+
 const SCHEDULE_TYPES = ["off_road", "service"] as const;
 type ScheduleType = (typeof SCHEDULE_TYPES)[number];
 const SCHEDULE_TYPE_LABELS: Record<string, string> = {
@@ -45,9 +54,23 @@ type FleetScheduleEntry = {
   lorry?: { id: string; name: string };
 };
 
+type TrailerScheduleEntry = {
+  id: string;
+  trailerId: string;
+  type: string;
+  startAt: string;
+  endAt: string | null;
+  notes: string | null;
+  trailer?: { id: string; number: string };
+};
+
 type FleetScheduleResponse = { ok: boolean; entries: FleetScheduleEntry[] };
 type CreateScheduleResponse = { ok: boolean; entry: FleetScheduleEntry };
 type UpdateScheduleResponse = { ok: boolean; entry: FleetScheduleEntry };
+
+type TrailerScheduleResponse = { ok: boolean; entries: TrailerScheduleEntry[] };
+type CreateTrailerScheduleResponse = { ok: boolean; entry: TrailerScheduleEntry };
+type UpdateTrailerScheduleResponse = { ok: boolean; entry: TrailerScheduleEntry };
 
 function toDatetimeLocal(iso: string): string {
   const d = new Date(iso);
@@ -92,6 +115,21 @@ export const FleetPage = () => {
   const [editScheduleNotes, setEditScheduleNotes] = useState("");
   const [deletingScheduleId, setDeletingScheduleId] = useState<string | null>(null);
 
+  const [trailerScheduleEntries, setTrailerScheduleEntries] = useState<TrailerScheduleEntry[]>([]);
+  const [trailerScheduleLoading, setTrailerScheduleLoading] = useState(false);
+  const [trailerScheduleTrailerId, setTrailerScheduleTrailerId] = useState("");
+  const [trailerScheduleType, setTrailerScheduleType] = useState<TrailerScheduleType>("on_road");
+  const [trailerScheduleStartAt, setTrailerScheduleStartAt] = useState("");
+  const [trailerScheduleEndAt, setTrailerScheduleEndAt] = useState("");
+  const [trailerScheduleNotes, setTrailerScheduleNotes] = useState("");
+  const [addingTrailerSchedule, setAddingTrailerSchedule] = useState(false);
+  const [editingTrailerScheduleId, setEditingTrailerScheduleId] = useState<string | null>(null);
+  const [editTrailerScheduleType, setEditTrailerScheduleType] = useState<TrailerScheduleType>("on_road");
+  const [editTrailerScheduleStartAt, setEditTrailerScheduleStartAt] = useState("");
+  const [editTrailerScheduleEndAt, setEditTrailerScheduleEndAt] = useState("");
+  const [editTrailerScheduleNotes, setEditTrailerScheduleNotes] = useState("");
+  const [deletingTrailerScheduleId, setDeletingTrailerScheduleId] = useState<string | null>(null);
+
   const canToggleStatus = useMemo(() => {
     const role = user?.role ?? "Clerk";
     return role === "Planner" || role === "Management" || role === "Developer";
@@ -108,6 +146,20 @@ export const FleetPage = () => {
       setError(e instanceof Error ? e.message : "Failed to load schedule");
     } finally {
       setScheduleLoading(false);
+    }
+  }, [canToggleStatus]);
+
+  const loadTrailerSchedule = useCallback(async () => {
+    if (!canToggleStatus) return;
+    setTrailerScheduleLoading(true);
+    setError("");
+    try {
+      const res = await apiGet<TrailerScheduleResponse>("/api/trailer-schedule");
+      setTrailerScheduleEntries(res.entries ?? []);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load trailer schedule");
+    } finally {
+      setTrailerScheduleLoading(false);
     }
   }, [canToggleStatus]);
 
@@ -165,6 +217,10 @@ export const FleetPage = () => {
   useEffect(() => {
     if (canToggleStatus) loadSchedule();
   }, [canToggleStatus, loadSchedule]);
+
+  useEffect(() => {
+    if (activeTab === "trailers" && canToggleStatus) loadTrailerSchedule();
+  }, [activeTab, canToggleStatus, loadTrailerSchedule]);
 
   useEffect(() => {
     if (activeTab === "trailers" || activeTab === "trucks") loadTrailers();
@@ -252,6 +308,83 @@ export const FleetPage = () => {
       setError(e instanceof Error ? e.message : "Failed to delete schedule entry");
     } finally {
       setDeletingScheduleId(null);
+    }
+  };
+
+  const handleAddTrailerSchedule = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!trailerScheduleTrailerId || !trailerScheduleStartAt) {
+      setError("Trailer and start date/time are required.");
+      return;
+    }
+    setError("");
+    setAddingTrailerSchedule(true);
+    try {
+      const res = await apiPost<CreateTrailerScheduleResponse>("/api/trailer-schedule", {
+        trailerId: trailerScheduleTrailerId,
+        type: trailerScheduleType,
+        startAt: fromDatetimeLocal(trailerScheduleStartAt) || new Date(trailerScheduleStartAt).toISOString(),
+        endAt: trailerScheduleEndAt ? fromDatetimeLocal(trailerScheduleEndAt) || new Date(trailerScheduleEndAt).toISOString() : null,
+        notes: trailerScheduleNotes.trim() || null,
+      });
+      if (res.ok && res.entry) {
+        setTrailerScheduleEntries((prev) =>
+          [...prev, res.entry!].sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime()),
+        );
+        setTrailerScheduleTrailerId("");
+        setTrailerScheduleType("on_road");
+        setTrailerScheduleStartAt("");
+        setTrailerScheduleEndAt("");
+        setTrailerScheduleNotes("");
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to add trailer schedule entry");
+    } finally {
+      setAddingTrailerSchedule(false);
+    }
+  };
+
+  const startEditTrailerSchedule = (entry: TrailerScheduleEntry) => {
+    setEditingTrailerScheduleId(entry.id);
+    setEditTrailerScheduleType((entry.type as TrailerScheduleType) || "on_road");
+    setEditTrailerScheduleStartAt(toDatetimeLocal(entry.startAt));
+    setEditTrailerScheduleEndAt(entry.endAt ? toDatetimeLocal(entry.endAt) : "");
+    setEditTrailerScheduleNotes(entry.notes ?? "");
+  };
+
+  const handleUpdateTrailerSchedule = async () => {
+    if (!editingTrailerScheduleId) return;
+    setError("");
+    try {
+      const res = await apiPatch<UpdateTrailerScheduleResponse>(`/api/trailer-schedule/${editingTrailerScheduleId}`, {
+        type: editTrailerScheduleType,
+        startAt: fromDatetimeLocal(editTrailerScheduleStartAt) || new Date(editTrailerScheduleStartAt).toISOString(),
+        endAt: editTrailerScheduleEndAt ? fromDatetimeLocal(editTrailerScheduleEndAt) || new Date(editTrailerScheduleEndAt).toISOString() : null,
+        notes: editTrailerScheduleNotes.trim() || null,
+      });
+      if (res.ok && res.entry) {
+        setTrailerScheduleEntries((prev) =>
+          prev
+            .map((e) => (e.id === editingTrailerScheduleId ? res.entry! : e))
+            .sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime()),
+        );
+        setEditingTrailerScheduleId(null);
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to update trailer schedule entry");
+    }
+  };
+
+  const handleDeleteTrailerSchedule = async (id: string) => {
+    setError("");
+    setDeletingTrailerScheduleId(id);
+    try {
+      await apiDelete(`/api/trailer-schedule/${id}`);
+      setTrailerScheduleEntries((prev) => prev.filter((e) => e.id !== id));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to delete trailer schedule entry");
+    } finally {
+      setDeletingTrailerScheduleId(null);
     }
   };
 
@@ -652,6 +785,183 @@ export const FleetPage = () => {
                   );
                 })}
               </div>
+            )}
+            {canToggleStatus && (
+              <>
+                <h3 className="management-section-title" style={{ marginTop: "2rem" }}>Trailer schedule</h3>
+                <p className="management-intro">
+                  Plan when trailers are on-road, off-road, in storage, or spare.
+                </p>
+
+                <section className="management-section">
+                  <h4 className="management-section-title">Add schedule entry</h4>
+                  <form className="management-create-form" onSubmit={handleAddTrailerSchedule}>
+                    <label>
+                      Trailer
+                      <select
+                        value={trailerScheduleTrailerId}
+                        onChange={(e) => setTrailerScheduleTrailerId(e.target.value)}
+                        className="management-select"
+                        required
+                      >
+                        <option value="">— Select trailer —</option>
+                        {trailers.map((t) => (
+                          <option key={t.id} value={t.id}>{t.number}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      Type
+                      <select
+                        value={trailerScheduleType}
+                        onChange={(e) => setTrailerScheduleType(e.target.value as TrailerScheduleType)}
+                        className="management-select"
+                      >
+                        {TRAILER_SCHEDULE_TYPES.map((t) => (
+                          <option key={t} value={t}>{TRAILER_SCHEDULE_LABELS[t]}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      Start (date & time)
+                      <input
+                        type="datetime-local"
+                        value={trailerScheduleStartAt}
+                        onChange={(e) => setTrailerScheduleStartAt(e.target.value)}
+                        className="management-input"
+                        required
+                      />
+                    </label>
+                    <label>
+                      End (date & time, optional)
+                      <input
+                        type="datetime-local"
+                        value={trailerScheduleEndAt}
+                        onChange={(e) => setTrailerScheduleEndAt(e.target.value)}
+                        className="management-input"
+                      />
+                    </label>
+                    <label>
+                      Notes (optional)
+                      <input
+                        type="text"
+                        value={trailerScheduleNotes}
+                        onChange={(e) => setTrailerScheduleNotes(e.target.value)}
+                        placeholder="e.g. annual check"
+                        className="management-input"
+                      />
+                    </label>
+                    <button type="submit" className="management-btn management-btn-primary" disabled={addingTrailerSchedule || trailers.length === 0}>
+                      {addingTrailerSchedule ? "Adding…" : "Add"}
+                    </button>
+                  </form>
+                </section>
+
+                <section className="management-section">
+                  <h4 className="management-section-title">Scheduled entries</h4>
+                  {trailerScheduleLoading ? (
+                    <p className="management-loading">Loading schedule…</p>
+                  ) : trailerScheduleEntries.length === 0 ? (
+                    <p className="management-loading">No schedule entries yet.</p>
+                  ) : (
+                    <div className="management-table-wrap">
+                      <table className="management-table">
+                        <thead>
+                          <tr>
+                            <th>Trailer</th>
+                            <th>Type</th>
+                            <th>Start</th>
+                            <th>End</th>
+                            <th>Notes</th>
+                            <th>Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {trailerScheduleEntries.map((entry) => (
+                            <tr key={entry.id}>
+                              <td>{entry.trailer?.number ?? entry.trailerId}</td>
+                              <td>
+                                {editingTrailerScheduleId === entry.id ? (
+                                  <select
+                                    value={editTrailerScheduleType}
+                                    onChange={(e) => setEditTrailerScheduleType(e.target.value as TrailerScheduleType)}
+                                    className="management-select management-select-small"
+                                  >
+                                    {TRAILER_SCHEDULE_TYPES.map((t) => (
+                                      <option key={t} value={t}>{TRAILER_SCHEDULE_LABELS[t]}</option>
+                                    ))}
+                                  </select>
+                                ) : (
+                                  TRAILER_SCHEDULE_LABELS[entry.type as TrailerScheduleType] ?? entry.type
+                                )}
+                              </td>
+                              <td>
+                                {editingTrailerScheduleId === entry.id ? (
+                                  <input
+                                    type="datetime-local"
+                                    value={editTrailerScheduleStartAt}
+                                    onChange={(e) => setEditTrailerScheduleStartAt(e.target.value)}
+                                    className="management-input management-input-inline"
+                                  />
+                                ) : (
+                                  new Date(entry.startAt).toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" })
+                                )}
+                              </td>
+                              <td>
+                                {editingTrailerScheduleId === entry.id ? (
+                                  <input
+                                    type="datetime-local"
+                                    value={editTrailerScheduleEndAt}
+                                    onChange={(e) => setEditTrailerScheduleEndAt(e.target.value)}
+                                    className="management-input management-input-inline"
+                                  />
+                                ) : entry.endAt ? (
+                                  new Date(entry.endAt).toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" })
+                                ) : (
+                                  "—"
+                                )}
+                              </td>
+                              <td>
+                                {editingTrailerScheduleId === entry.id ? (
+                                  <input
+                                    type="text"
+                                    value={editTrailerScheduleNotes}
+                                    onChange={(e) => setEditTrailerScheduleNotes(e.target.value)}
+                                    className="management-input management-input-inline"
+                                    placeholder="Optional"
+                                  />
+                                ) : (
+                                  entry.notes ?? "—"
+                                )}
+                              </td>
+                              <td>
+                                {editingTrailerScheduleId === entry.id ? (
+                                  <>
+                                    <button type="button" className="management-btn management-btn-small" onClick={handleUpdateTrailerSchedule}>Save</button>
+                                    <button type="button" className="management-btn management-btn-small" onClick={() => setEditingTrailerScheduleId(null)}>Cancel</button>
+                                  </>
+                                ) : (
+                                  <>
+                                    <button type="button" className="management-btn management-btn-small management-btn-link" onClick={() => startEditTrailerSchedule(entry)}>Edit</button>
+                                    <button
+                                      type="button"
+                                      className="management-btn management-btn-small management-btn-danger"
+                                      onClick={() => handleDeleteTrailerSchedule(entry.id)}
+                                      disabled={deletingTrailerScheduleId === entry.id}
+                                    >
+                                      {deletingTrailerScheduleId === entry.id ? "Deleting…" : "Remove"}
+                                    </button>
+                                  </>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </section>
+              </>
             )}
           </>
         )}

@@ -2,6 +2,7 @@ import { Router, Response } from "express";
 import { z } from "zod";
 import { prisma } from "../db";
 import type { AuthRequest } from "../middleware/auth";
+import { syncTrailerStatusFromSchedule } from "../services/trailerStatusSync";
 
 const TRAILER_STATUSES = ["on_road", "off_road", "storage", "spare"] as const;
 
@@ -25,11 +26,16 @@ export const trailersRouter = Router();
 
 trailersRouter.get("/api/trailers", async (_req, res, next) => {
   try {
+    const statusByTrailerId = await syncTrailerStatusFromSchedule();
     const trailers = await prisma.trailer.findMany({
       orderBy: { number: "asc" },
       include: { lorry: { select: { id: true, name: true } } },
     });
-    res.json(trailers);
+    const items = trailers.map((trailer) => ({
+      ...trailer,
+      status: statusByTrailerId.get(trailer.id) ?? trailer.status,
+    }));
+    res.json(items);
   } catch (err) {
     next(err);
   }
