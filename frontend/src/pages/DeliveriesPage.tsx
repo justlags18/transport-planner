@@ -10,7 +10,6 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
-import { useAuth } from "../context/AuthContext";
 import { apiGet, apiPatch, apiPost } from "../api/client";
 import { UnassignedDeliveriesPanel } from "../components/deliveries/UnassignedDeliveriesPanel";
 import { LorriesBoard } from "../components/deliveries/LorriesBoard";
@@ -63,9 +62,6 @@ export const DeliveriesPage = () => {
     sampleRow?: Record<string, string>;
   } | null>(null);
   const [backfilling, setBackfilling] = useState(false);
-  const [clearAllInProgress, setClearAllInProgress] = useState(false);
-  const { user } = useAuth();
-  const canClearAll = user?.role === "Management" || user?.role === "Developer";
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -399,27 +395,6 @@ export const DeliveriesPage = () => {
     [refreshData],
   );
 
-  const handleClearAllAndRefresh = useCallback(async () => {
-    if (!canClearAll) return;
-    const ok = window.confirm(
-      "Clear all delivery assignments? Every job will be unassigned from every truck. You can then refresh and re-plan. This cannot be undone."
-    );
-    if (!ok) return;
-    setClearAllInProgress(true);
-    setError(null);
-    try {
-      const res = await apiPost<{ ok: boolean; deleted?: number }>("/api/assignments/clear-all", {});
-      if (res?.ok) {
-        setLorryIdInReloadMode(null);
-        await refreshData();
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Clear all failed");
-    } finally {
-      setClearAllInProgress(false);
-    }
-  }, [canClearAll, refreshData]);
-
   const handleBackfillPallets = useCallback(async () => {
     setBackfilling(true);
     setBackfillResult(null);
@@ -523,17 +498,6 @@ export const DeliveriesPage = () => {
             >
               {backfilling ? "Backfilling…" : "Backfill pallets"}
             </button>
-            {canClearAll && (
-              <button
-                type="button"
-                className="management-btn management-btn-small management-btn-danger"
-                onClick={handleClearAllAndRefresh}
-                disabled={clearAllInProgress}
-                title="Remove every job from every truck, then refresh. Management/Developer only."
-              >
-                {clearAllInProgress ? "Clearing…" : "Clear all & refresh"}
-              </button>
-            )}
           </form>
         </section>
         {backfillResult != null && (

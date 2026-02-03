@@ -140,8 +140,17 @@ assignmentsRouter.post("/api/assignments/clear-all", async (req: AuthRequest, re
       res.status(403).json({ ok: false, error: "Management or Developer role required to clear all assignments" });
       return;
     }
-    const result = await prisma.assignment.deleteMany({});
-    res.json({ ok: true, deleted: result.count });
+    const [assignResult, palletResult, consignmentResult] = await prisma.$transaction([
+      prisma.assignment.deleteMany({}),
+      prisma.palletOverride.deleteMany({}),
+      prisma.consignment.deleteMany({}),
+    ]);
+    res.json({
+      ok: true,
+      deletedAssignments: assignResult.count,
+      deletedPalletOverrides: palletResult.count,
+      deletedConsignments: consignmentResult.count,
+    });
   } catch (err) {
     next(err);
   }

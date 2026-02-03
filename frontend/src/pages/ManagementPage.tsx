@@ -187,9 +187,10 @@ export const ManagementPage = () => {
   const [editLocationNotes, setEditLocationNotes] = useState("");
   const [deletingLocationId, setDeletingLocationId] = useState<string | null>(null);
 
-  // Consignments (force refresh / archive old)
+  // Consignments (force refresh / archive old / clear all assignments)
   const [consignmentsRefreshing, setConsignmentsRefreshing] = useState(false);
   const [consignmentsArchiving, setConsignmentsArchiving] = useState(false);
+  const [clearAllInProgress, setClearAllInProgress] = useState(false);
   const [scrapeLog, setScrapeLog] = useState<ScrapeLog | null>(null);
 
   const [error, setError] = useState("");
@@ -338,6 +339,38 @@ export const ManagementPage = () => {
       setError(e instanceof Error ? e.message : "Archive old consignments failed");
     } finally {
       setConsignmentsArchiving(false);
+    }
+  }, []);
+
+  const handleClearAllAssignments = useCallback(async () => {
+    const ok = window.confirm(
+      "Clear everything? This will remove ALL assignments (every job from every truck) AND delete ALL consignments from the database. Lorries, trailers, and settings are kept. Run Force refresh to re-import consignments from the backoffice. This cannot be undone."
+    );
+    if (!ok) return;
+    setClearAllInProgress(true);
+    setError("");
+    try {
+      const res = await apiPost<{
+        ok: boolean;
+        deletedAssignments?: number;
+        deletedPalletOverrides?: number;
+        deletedConsignments?: number;
+      }>("/api/assignments/clear-all", {});
+      if (res?.ok) {
+        setError("");
+        const msg = [
+          res.deletedAssignments != null && `Cleared ${res.deletedAssignments} assignment(s).`,
+          res.deletedConsignments != null && `Deleted ${res.deletedConsignments} consignment(s).`,
+          "Go to Deliveries to re-plan. Use Force refresh above to re-import consignments from the backoffice.",
+        ]
+          .filter(Boolean)
+          .join(" ");
+        window.alert(msg);
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Clear all failed");
+    } finally {
+      setClearAllInProgress(false);
     }
   }, []);
 
@@ -837,6 +870,15 @@ export const ManagementPage = () => {
                 title="Archive consignments not seen since before today (not assigned to a lorry)"
               >
                 {consignmentsArchiving ? "Archiving…" : "Archive old consignments"}
+              </button>
+              <button
+                type="button"
+                className="management-btn management-btn-small management-btn-danger"
+                onClick={handleClearAllAssignments}
+                disabled={clearAllInProgress}
+                title="Remove all assignments and delete all consignments. Use Force refresh to re-import."
+              >
+                {clearAllInProgress ? "Clearing…" : "Clear all (assignments + consignments)"}
               </button>
             </div>
           </section>
