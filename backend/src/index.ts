@@ -1,4 +1,5 @@
 import "dotenv/config";
+import "./config/env";
 import { createApp } from "./server";
 import { ensureInitialUser } from "./seed";
 import { startBackofficePoller } from "./jobs/backofficePoller";

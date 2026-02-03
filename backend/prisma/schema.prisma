@@ -178,17 +178,22 @@ model CustomerPref {
 }
 
 model DeliveryLocation {
-  id           String   @id @default(cuid())
-  displayName  String
-  destinationKey String?  // optional link to consignments
-  notes        String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id             String    @id @default(cuid())
+  displayName    String
+  destinationKey String?   // optional link to consignments
+  notes          String?
+  postcode       String?
+  lat            Float?
+  lng            Float?
+  geoUpdatedAt   DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   prefs        CustomerPrefDeliveryLocation[]
   consignments Consignment[]
 
   @@index([destinationKey])
+  @@index([postcode])
 }
 
 model CustomerPrefDeliveryLocation {

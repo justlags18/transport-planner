@@ -13,6 +13,7 @@ import { lorriesRouter } from "./lorries";
 import { trailersRouter } from "./trailers";
 import { palletOverridesRouter } from "./palletOverrides";
 import { assignmentsRouter } from "./assignments";
+import { planningRouter } from "./planning";
 import { auditLogsRouter } from "./auditLogs";
 import pkg from "../../package.json";
 
@@ -31,6 +32,7 @@ routesRouter.use("/", lorriesRouter);
 routesRouter.use("/", trailersRouter);
 routesRouter.use("/", palletOverridesRouter);
 routesRouter.use("/", assignmentsRouter);
+routesRouter.use("/", planningRouter);
 
 // Planner+ can access customer prefs (must be before Management-only block)
 routesRouter.use(requirePlannerOrAbove);
