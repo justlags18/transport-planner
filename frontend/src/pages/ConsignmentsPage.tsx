@@ -312,8 +312,12 @@ export const ConsignmentsPage = () => {
                 >
                   <summary className="consignments-group-summary">
                     <div className="consignments-group-main">
-                      <span className="consignments-group-customer">{group.customer}</span>
-                      {group.items.some((i) => i.isPlanned) ? <span className="consignments-planned-badge">Planned</span> : null}
+                      <span className="consignments-group-customer-row">
+                        <span className="consignments-group-customer">{group.customer}</span>
+                        {group.items.some((i) => i.isPlanned) ? (
+                          <span className="consignments-planned-badge" title="Assigned to a lorry">Planned</span>
+                        ) : null}
+                      </span>
                       <span className="consignments-group-mawb">AWB: {group.mawb}</span>
                     </div>
                     <div className="consignments-group-meta">
@@ -355,8 +359,12 @@ export const ConsignmentsPage = () => {
                                 </div>
                               </td>
                               <td>
-                                <span>{item.customerNameRaw ?? "-"}</span>
-                                {item.isPlanned ? <span className="consignments-planned-badge">Planned</span> : null}
+                                <span className="consignments-group-customer-row">
+                                  <span>{item.customerNameRaw ?? "-"}</span>
+                                  {item.isPlanned ? (
+                                    <span className="consignments-planned-badge" title="Assigned to a lorry">Planned</span>
+                                  ) : null}
+                                </span>
                               </td>
                               <td>{item.mawbRaw ?? "-"}</td>
                               <td>{item.hawbRaw ?? "-"}</td>

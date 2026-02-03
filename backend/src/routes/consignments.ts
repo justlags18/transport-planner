@@ -160,6 +160,19 @@ consignmentsRouter.get("/api/consignments", async (req, res, next) => {
   }
 });
 
+/** Lightweight count for active (or all) consignments. Used by Management Consignments tab. */
+consignmentsRouter.get("/api/consignments/count", async (req, res, next) => {
+  try {
+    const activeOnly = req.query.active === "1";
+    const count = await prisma.consignment.count({
+      where: activeOnly ? { archivedAt: null } : undefined,
+    });
+    res.json({ ok: true, count });
+  } catch (err) {
+    next(err);
+  }
+});
+
 /** Update a consignment's delivery location override. */
 consignmentsRouter.patch("/api/consignments/:id/delivery-location", async (req, res, next) => {
   try {

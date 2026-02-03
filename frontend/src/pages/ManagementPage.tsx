@@ -192,6 +192,7 @@ export const ManagementPage = () => {
   const [consignmentsArchiving, setConsignmentsArchiving] = useState(false);
   const [clearAllInProgress, setClearAllInProgress] = useState(false);
   const [scrapeLog, setScrapeLog] = useState<ScrapeLog | null>(null);
+  const [activeConsignmentsCount, setActiveConsignmentsCount] = useState<number | null>(null);
 
   const [error, setError] = useState("");
 
@@ -306,6 +307,15 @@ export const ManagementPage = () => {
     }
   }, []);
 
+  const loadActiveConsignmentsCount = useCallback(async () => {
+    try {
+      const res = await apiGet<{ ok: boolean; count: number }>("/api/consignments/count?active=1");
+      if (res.ok && typeof res.count === "number") setActiveConsignmentsCount(res.count);
+    } catch {
+      setActiveConsignmentsCount(null);
+    }
+  }, []);
+
   const handleConsignmentsRefresh = useCallback(async () => {
     setConsignmentsRefreshing(true);
     setError("");
@@ -313,19 +323,23 @@ export const ManagementPage = () => {
       await apiPost<{ ok: boolean; message?: string }>("/api/consignments/refresh", {});
       if (isDeveloper) {
         setError("");
-        const pollLog = () => {
+        const poll = () => {
           loadScrapeLog();
+          loadActiveConsignmentsCount();
         };
-        setTimeout(pollLog, 3000);
-        setTimeout(pollLog, 8000);
-        setTimeout(pollLog, 15000);
+        setTimeout(poll, 3000);
+        setTimeout(poll, 8000);
+        setTimeout(poll, 15000);
+        setTimeout(poll, 30000);
+        setTimeout(poll, 60000);
       }
+      loadActiveConsignmentsCount();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Force refresh failed");
     } finally {
       setConsignmentsRefreshing(false);
     }
-  }, [isDeveloper, loadScrapeLog]);
+  }, [isDeveloper, loadScrapeLog, loadActiveConsignmentsCount]);
 
   const handleArchiveOldConsignments = useCallback(async () => {
     setConsignmentsArchiving(true);
@@ -414,8 +428,11 @@ export const ManagementPage = () => {
   }, [activeTab, loadDeliveryLocations]);
 
   useEffect(() => {
-    if (activeTab === "consignments" && isDeveloper) loadScrapeLog();
-  }, [activeTab, isDeveloper, loadScrapeLog]);
+    if (activeTab === "consignments" && isDeveloper) {
+      loadScrapeLog();
+      loadActiveConsignmentsCount();
+    }
+  }, [activeTab, isDeveloper, loadScrapeLog, loadActiveConsignmentsCount]);
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -852,6 +869,19 @@ export const ManagementPage = () => {
           </p>
           <section className="management-section">
             <h3 className="management-section-title">Consignments data</h3>
+            <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", alignItems: "center", marginBottom: "0.75rem" }}>
+              <span className="management-muted">
+                Active consignments: {activeConsignmentsCount !== null ? activeConsignmentsCount : "…"}
+              </span>
+              <button
+                type="button"
+                className="management-btn management-btn-small"
+                onClick={loadActiveConsignmentsCount}
+                title="Refresh active consignments count"
+              >
+                Refresh count
+              </button>
+            </div>
             <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", alignItems: "center" }}>
               <button
                 type="button"
@@ -923,6 +953,11 @@ export const ManagementPage = () => {
                 </div>
               ) : !scrapeLogError ? (
                 <p className="management-muted" style={{ marginTop: "0.75rem" }}>No scrape log yet. Run Force refresh to start a scrape, wait 30–60s for it to finish, then click Refresh log.</p>
+              ) : null}
+              {scrapeLog && (scrapeLog.totalRows === 0 || scrapeLog.upserted === 0 || scrapeLog.errors.length > 0) ? (
+                <p className="management-muted" style={{ marginTop: "1rem", padding: "0.75rem", background: "var(--bg-muted, #f9f9f9)", borderRadius: "4px", fontSize: "0.875rem" }}>
+                  <strong>Nothing imported?</strong> Wait 30–60s after Force refresh then click Refresh log. If the log still shows 0 rows or errors: check that <code>PML_BACKOFFICE_USER</code> and <code>PML_BACKOFFICE_PASS</code> are set in the server env, and that <code>PML_BACKOFFICE_DATA_URL</code> (or <code>PML_BACKOFFICE_LOGIN_URL</code>) points at the backoffice page that lists consignments. The scraper must see the consignments table after login.
+                </p>
               ) : null}
             </section>
           )}

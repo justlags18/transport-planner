@@ -2478,6 +2478,13 @@ button:disabled {
   gap: 4px;
 }
 
+.consignments-group-customer-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .consignments-group-customer {
   font-weight: 600;
   color: var(--text-primary);
@@ -2561,14 +2568,14 @@ button:disabled {
 .consignments-planned-badge {
   display: inline-flex;
   align-items: center;
-  margin-left: 6px;
-  padding: 2px 8px;
+  padding: 4px 10px;
   border-radius: 999px;
   background: #16a34a;
   color: #fff;
   font-size: 0.7rem;
   font-weight: 600;
   letter-spacing: 0.02em;
+  flex-shrink: 0;
 }
 
 .management-btn-link {
