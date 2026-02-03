@@ -28,6 +28,10 @@ function parseDateTime(s: string): Date {
 
 export const fleetScheduleRouter = Router();
 
+function canManageSchedule(role: string): boolean {
+  return role === "Management" || role === "Developer";
+}
+
 fleetScheduleRouter.get("/api/fleet-schedule", async (req: AuthRequest, res: Response) => {
   try {
     const lorryId = typeof req.query.lorryId === "string" ? req.query.lorryId.trim() : undefined;
@@ -57,6 +61,10 @@ fleetScheduleRouter.get("/api/fleet-schedule", async (req: AuthRequest, res: Res
 
 fleetScheduleRouter.post("/api/fleet-schedule", async (req: AuthRequest, res: Response) => {
   try {
+    if (!canManageSchedule(req.user?.role ?? "")) {
+      res.status(403).json({ ok: false, error: "Forbidden: Management or Developer role required" });
+      return;
+    }
     const parsed = createFleetScheduleSchema.safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ ok: false, error: "Invalid input: lorryId, type, startAt required" });
@@ -92,6 +100,10 @@ fleetScheduleRouter.post("/api/fleet-schedule", async (req: AuthRequest, res: Re
 
 fleetScheduleRouter.patch("/api/fleet-schedule/:id", async (req: AuthRequest, res: Response) => {
   try {
+    if (!canManageSchedule(req.user?.role ?? "")) {
+      res.status(403).json({ ok: false, error: "Forbidden: Management or Developer role required" });
+      return;
+    }
     const parsed = updateFleetScheduleSchema.safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ ok: false, error: "Invalid input" });
@@ -126,6 +138,10 @@ fleetScheduleRouter.patch("/api/fleet-schedule/:id", async (req: AuthRequest, re
 
 fleetScheduleRouter.delete("/api/fleet-schedule/:id", async (req: AuthRequest, res: Response) => {
   try {
+    if (!canManageSchedule(req.user?.role ?? "")) {
+      res.status(403).json({ ok: false, error: "Forbidden: Management or Developer role required" });
+      return;
+    }
     const { id } = req.params;
     const existing = await prisma.fleetSchedule.findUnique({ where: { id } });
     if (!existing) {

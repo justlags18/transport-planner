@@ -10,6 +10,10 @@ function canManageTrailers(role: string): boolean {
   return role === "Management" || role === "Developer";
 }
 
+function canManageSchedule(role: string): boolean {
+  return role === "Management" || role === "Developer";
+}
+
 const createTrailerSchema = z.object({
   number: z.string().trim().min(1),
   status: z.enum(TRAILER_STATUSES).optional().default("spare"),
@@ -82,6 +86,13 @@ trailersRouter.patch("/api/trailers/:id", async (req: AuthRequest, res: Response
     if (!existing) {
       res.status(404).json({ ok: false, error: "Trailer not found" });
       return;
+    }
+    if (parsed.data.status !== undefined && !canManageSchedule(req.user?.role ?? "")) {
+      const scheduleCount = await prisma.trailerSchedule.count({ where: { trailerId: id } });
+      if (scheduleCount > 0) {
+        res.status(403).json({ ok: false, error: "Schedule exists: Management required to change status" });
+        return;
+      }
     }
     const trailer = await prisma.trailer.update({
       where: { id },

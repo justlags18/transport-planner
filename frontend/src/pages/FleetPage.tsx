@@ -130,13 +130,19 @@ export const FleetPage = () => {
   const [editTrailerScheduleNotes, setEditTrailerScheduleNotes] = useState("");
   const [deletingTrailerScheduleId, setDeletingTrailerScheduleId] = useState<string | null>(null);
 
-  const canToggleStatus = useMemo(() => {
+  const canAssignTrailer = useMemo(() => {
     const role = user?.role ?? "Clerk";
     return role === "Planner" || role === "Management" || role === "Developer";
   }, [user]);
 
+  const canManageSchedule = useMemo(() => {
+    const role = user?.role ?? "Clerk";
+    return role === "Management" || role === "Developer";
+  }, [user]);
+
+  const canManageStatus = canManageSchedule;
+
   const loadSchedule = useCallback(async () => {
-    if (!canToggleStatus) return;
     setScheduleLoading(true);
     setError("");
     try {
@@ -147,10 +153,9 @@ export const FleetPage = () => {
     } finally {
       setScheduleLoading(false);
     }
-  }, [canToggleStatus]);
+  }, []);
 
   const loadTrailerSchedule = useCallback(async () => {
-    if (!canToggleStatus) return;
     setTrailerScheduleLoading(true);
     setError("");
     try {
@@ -161,7 +166,7 @@ export const FleetPage = () => {
     } finally {
       setTrailerScheduleLoading(false);
     }
-  }, [canToggleStatus]);
+  }, []);
 
   const loadTrailers = useCallback(async () => {
     setTrailersLoading(true);
@@ -215,12 +220,12 @@ export const FleetPage = () => {
   }, []);
 
   useEffect(() => {
-    if (canToggleStatus) loadSchedule();
-  }, [canToggleStatus, loadSchedule]);
+    loadSchedule();
+  }, [loadSchedule]);
 
   useEffect(() => {
-    if (activeTab === "trailers" && canToggleStatus) loadTrailerSchedule();
-  }, [activeTab, canToggleStatus, loadTrailerSchedule]);
+    if (activeTab === "trailers") loadTrailerSchedule();
+  }, [activeTab, loadTrailerSchedule]);
 
   useEffect(() => {
     if (activeTab === "trailers" || activeTab === "trucks") loadTrailers();
@@ -451,7 +456,7 @@ export const FleetPage = () => {
                     .filter((t) => t.lorryId === lorry.id)
                     .map((t) => t.number);
                   const toggleStatus = async () => {
-                    if (!canToggleStatus) return;
+                    if (!canManageStatus) return;
                     const nextStatus = status === "on" ? "off" : "on";
                     try {
                       await apiPatch(`/api/lorries/${lorry.id}/status`, { status: nextStatus });
@@ -460,6 +465,8 @@ export const FleetPage = () => {
                       setError(e instanceof Error ? e.message : "Failed to update status");
                     }
                   };
+                  const hasSchedule = scheduleEntries.some((entry) => entry.lorryId === lorry.id);
+                  const toggleDisabled = !canManageStatus || (!canManageSchedule && hasSchedule);
 
                   const statusLabel = status === "on" ? "ON ROAD" : status === "service" ? "SERVICE" : "OFF ROAD";
                   const statusMeta = status === "on" ? "Available" : status === "service" ? "Service" : "Unavailable";
@@ -481,11 +488,13 @@ export const FleetPage = () => {
                         <span className="fleet-card-badge">
                           {lorry.assignments?.length ?? 0} stops
                         </span>
-                        {canToggleStatus ? (
+                    {canManageStatus ? (
                           <button
                             type="button"
                             className="fleet-toggle-btn"
                             onClick={toggleStatus}
+                        disabled={toggleDisabled}
+                        title={toggleDisabled ? "Schedule exists. Management required to change status." : undefined}
                           >
                             Toggle
                           </button>
@@ -515,7 +524,7 @@ export const FleetPage = () => {
               </div>
             )}
 
-            {canToggleStatus && (
+            {canManageSchedule && (
               <>
                 <h3 className="management-section-title" style={{ marginTop: "2rem" }}>Schedule</h3>
                 <p className="management-intro">
@@ -602,7 +611,7 @@ export const FleetPage = () => {
                             <th>Start</th>
                             <th>End</th>
                             <th>Notes</th>
-                            <th>Actions</th>
+                            {canManageSchedule ? <th>Actions</th> : null}
                           </tr>
                         </thead>
                         <tbody>
@@ -610,7 +619,7 @@ export const FleetPage = () => {
                             <tr key={entry.id}>
                               <td>{entry.lorry?.name ?? entry.lorryId}</td>
                               <td>
-                                {editingScheduleId === entry.id ? (
+                                {canManageSchedule && editingScheduleId === entry.id ? (
                                   <select
                                     value={editScheduleType}
                                     onChange={(e) => setEditScheduleType(e.target.value as ScheduleType)}
@@ -625,7 +634,7 @@ export const FleetPage = () => {
                                 )}
                               </td>
                               <td>
-                                {editingScheduleId === entry.id ? (
+                                {canManageSchedule && editingScheduleId === entry.id ? (
                                   <input
                                     type="datetime-local"
                                     value={editScheduleStartAt}
@@ -637,7 +646,7 @@ export const FleetPage = () => {
                                 )}
                               </td>
                               <td>
-                                {editingScheduleId === entry.id ? (
+                                {canManageSchedule && editingScheduleId === entry.id ? (
                                   <input
                                     type="datetime-local"
                                     value={editScheduleEndAt}
@@ -651,7 +660,7 @@ export const FleetPage = () => {
                                 )}
                               </td>
                               <td>
-                                {editingScheduleId === entry.id ? (
+                                {canManageSchedule && editingScheduleId === entry.id ? (
                                   <input
                                     type="text"
                                     value={editScheduleNotes}
@@ -663,26 +672,28 @@ export const FleetPage = () => {
                                   entry.notes ?? "—"
                                 )}
                               </td>
-                              <td>
-                                {editingScheduleId === entry.id ? (
-                                  <>
-                                    <button type="button" className="management-btn management-btn-small" onClick={handleUpdateSchedule}>Save</button>
-                                    <button type="button" className="management-btn management-btn-small" onClick={() => setEditingScheduleId(null)}>Cancel</button>
-                                  </>
-                                ) : (
-                                  <>
-                                    <button type="button" className="management-btn management-btn-small management-btn-link" onClick={() => startEditSchedule(entry)}>Edit</button>
-                                    <button
-                                      type="button"
-                                      className="management-btn management-btn-small management-btn-danger"
-                                      onClick={() => handleDeleteSchedule(entry.id)}
-                                      disabled={deletingScheduleId === entry.id}
-                                    >
-                                      {deletingScheduleId === entry.id ? "Deleting…" : "Remove"}
-                                    </button>
-                                  </>
-                                )}
-                              </td>
+                              {canManageSchedule ? (
+                                <td>
+                                  {editingScheduleId === entry.id ? (
+                                    <>
+                                      <button type="button" className="management-btn management-btn-small" onClick={handleUpdateSchedule}>Save</button>
+                                      <button type="button" className="management-btn management-btn-small" onClick={() => setEditingScheduleId(null)}>Cancel</button>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <button type="button" className="management-btn management-btn-small management-btn-link" onClick={() => startEditSchedule(entry)}>Edit</button>
+                                      <button
+                                        type="button"
+                                        className="management-btn management-btn-small management-btn-danger"
+                                        onClick={() => handleDeleteSchedule(entry.id)}
+                                        disabled={deletingScheduleId === entry.id}
+                                      >
+                                        {deletingScheduleId === entry.id ? "Deleting…" : "Remove"}
+                                      </button>
+                                    </>
+                                  )}
+                                </td>
+                              ) : null}
                             </tr>
                           ))}
                         </tbody>
@@ -709,8 +720,12 @@ export const FleetPage = () => {
                   const attachedLabel = trailer.lorry?.name ?? "Unassigned";
                   const selectedLorryId = trailerAssignById[trailer.id] ?? (trailer.lorryId ?? "");
                   const hasAssignChange = selectedLorryId !== (trailer.lorryId ?? "");
+                  const trailerHasSchedule = trailerScheduleEntries.some(
+                    (entry) => entry.trailerId === trailer.id,
+                  );
+                  const statusDisabled = !canManageSchedule && trailerHasSchedule;
                   const updateStatus = async (nextStatus: TrailerStatus) => {
-                    if (!canToggleStatus) return;
+                    if (!canManageStatus) return;
                     if (nextStatus === "off_road" && trailer.lorryId) {
                       const ok = window.confirm(
                         "This trailer is assigned to a truck. Set to OFF ROAD and unassign it?",
@@ -765,11 +780,13 @@ export const FleetPage = () => {
                         <span className="fleet-card-badge">
                           {attachedLabel === "Unassigned" ? "Unassigned" : `Attached: ${attachedLabel}`}
                         </span>
-                        {canToggleStatus ? (
+                        {canManageStatus ? (
                           <select
                             className="fleet-toggle-select management-select management-select-small"
                             value={status}
                             onChange={(e) => updateStatus(e.target.value as TrailerStatus)}
+                            disabled={statusDisabled}
+                            title={statusDisabled ? "Schedule exists. Management required to change status." : undefined}
                           >
                             {Object.keys(TRAILER_STATUS_LABELS).map((key) => (
                               <option key={key} value={key}>
@@ -787,7 +804,7 @@ export const FleetPage = () => {
                         <span>Truck</span>
                         <span>{attachedLabel}</span>
                       </div>
-                      {canToggleStatus ? (
+                      {canAssignTrailer ? (
                         <div className="fleet-card-meta">
                           <span>Assign</span>
                           <span style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
@@ -822,7 +839,7 @@ export const FleetPage = () => {
                 })}
               </div>
             )}
-            {canToggleStatus && (
+            {canManageSchedule && (
               <>
                 <h3 className="management-section-title" style={{ marginTop: "2rem" }}>Trailer schedule</h3>
                 <p className="management-intro">
@@ -909,7 +926,7 @@ export const FleetPage = () => {
                             <th>Start</th>
                             <th>End</th>
                             <th>Notes</th>
-                            <th>Actions</th>
+                            {canManageSchedule ? <th>Actions</th> : null}
                           </tr>
                         </thead>
                         <tbody>
@@ -917,7 +934,7 @@ export const FleetPage = () => {
                             <tr key={entry.id}>
                               <td>{entry.trailer?.number ?? entry.trailerId}</td>
                               <td>
-                                {editingTrailerScheduleId === entry.id ? (
+                                {canManageSchedule && editingTrailerScheduleId === entry.id ? (
                                   <select
                                     value={editTrailerScheduleType}
                                     onChange={(e) => setEditTrailerScheduleType(e.target.value as TrailerScheduleType)}
@@ -932,7 +949,7 @@ export const FleetPage = () => {
                                 )}
                               </td>
                               <td>
-                                {editingTrailerScheduleId === entry.id ? (
+                                {canManageSchedule && editingTrailerScheduleId === entry.id ? (
                                   <input
                                     type="datetime-local"
                                     value={editTrailerScheduleStartAt}
@@ -944,7 +961,7 @@ export const FleetPage = () => {
                                 )}
                               </td>
                               <td>
-                                {editingTrailerScheduleId === entry.id ? (
+                                {canManageSchedule && editingTrailerScheduleId === entry.id ? (
                                   <input
                                     type="datetime-local"
                                     value={editTrailerScheduleEndAt}
@@ -958,7 +975,7 @@ export const FleetPage = () => {
                                 )}
                               </td>
                               <td>
-                                {editingTrailerScheduleId === entry.id ? (
+                                {canManageSchedule && editingTrailerScheduleId === entry.id ? (
                                   <input
                                     type="text"
                                     value={editTrailerScheduleNotes}
@@ -970,26 +987,28 @@ export const FleetPage = () => {
                                   entry.notes ?? "—"
                                 )}
                               </td>
-                              <td>
-                                {editingTrailerScheduleId === entry.id ? (
-                                  <>
-                                    <button type="button" className="management-btn management-btn-small" onClick={handleUpdateTrailerSchedule}>Save</button>
-                                    <button type="button" className="management-btn management-btn-small" onClick={() => setEditingTrailerScheduleId(null)}>Cancel</button>
-                                  </>
-                                ) : (
-                                  <>
-                                    <button type="button" className="management-btn management-btn-small management-btn-link" onClick={() => startEditTrailerSchedule(entry)}>Edit</button>
-                                    <button
-                                      type="button"
-                                      className="management-btn management-btn-small management-btn-danger"
-                                      onClick={() => handleDeleteTrailerSchedule(entry.id)}
-                                      disabled={deletingTrailerScheduleId === entry.id}
-                                    >
-                                      {deletingTrailerScheduleId === entry.id ? "Deleting…" : "Remove"}
-                                    </button>
-                                  </>
-                                )}
-                              </td>
+                              {canManageSchedule ? (
+                                <td>
+                                  {editingTrailerScheduleId === entry.id ? (
+                                    <>
+                                      <button type="button" className="management-btn management-btn-small" onClick={handleUpdateTrailerSchedule}>Save</button>
+                                      <button type="button" className="management-btn management-btn-small" onClick={() => setEditingTrailerScheduleId(null)}>Cancel</button>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <button type="button" className="management-btn management-btn-small management-btn-link" onClick={() => startEditTrailerSchedule(entry)}>Edit</button>
+                                      <button
+                                        type="button"
+                                        className="management-btn management-btn-small management-btn-danger"
+                                        onClick={() => handleDeleteTrailerSchedule(entry.id)}
+                                        disabled={deletingTrailerScheduleId === entry.id}
+                                      >
+                                        {deletingTrailerScheduleId === entry.id ? "Deleting…" : "Remove"}
+                                      </button>
+                                    </>
+                                  )}
+                                </td>
+                              ) : null}
                             </tr>
                           ))}
                         </tbody>

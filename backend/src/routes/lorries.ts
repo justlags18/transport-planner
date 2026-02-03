@@ -12,7 +12,11 @@ function canManageLorries(role: string): boolean {
 }
 
 function canToggleStatus(role: string): boolean {
-  return role === "Planner" || role === "Management" || role === "Developer";
+  return role === "Management" || role === "Developer";
+}
+
+function canManageSchedule(role: string): boolean {
+  return role === "Management" || role === "Developer";
 }
 
 export const lorriesRouter = Router();
@@ -193,7 +197,7 @@ lorriesRouter.patch("/api/lorries/:id", async (req: AuthRequest, res: Response, 
 lorriesRouter.patch("/api/lorries/:id/status", async (req: AuthRequest, res: Response, next) => {
   try {
     if (!canToggleStatus(req.user?.role ?? "")) {
-      res.status(403).json({ ok: false, error: "Forbidden: Planner or higher role required" });
+      res.status(403).json({ ok: false, error: "Forbidden: Management or Developer role required" });
       return;
     }
 
@@ -211,6 +215,13 @@ lorriesRouter.patch("/api/lorries/:id/status", async (req: AuthRequest, res: Res
     }
 
     const { status } = parsed.data;
+    if (!canManageSchedule(req.user?.role ?? "")) {
+      const scheduleCount = await prisma.fleetSchedule.count({ where: { lorryId: id } });
+      if (scheduleCount > 0) {
+        res.status(403).json({ ok: false, error: "Schedule exists: Management required to change status" });
+        return;
+      }
+    }
     const updated = await prisma.lorry.update({
       where: { id },
       data: { status },

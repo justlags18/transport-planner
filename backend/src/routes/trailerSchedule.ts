@@ -28,6 +28,10 @@ function parseDateTime(s: string): Date {
 
 export const trailerScheduleRouter = Router();
 
+function canManageSchedule(role: string): boolean {
+  return role === "Management" || role === "Developer";
+}
+
 trailerScheduleRouter.get("/api/trailer-schedule", async (req: AuthRequest, res: Response) => {
   try {
     const trailerId = typeof req.query.trailerId === "string" ? req.query.trailerId.trim() : undefined;
@@ -57,6 +61,10 @@ trailerScheduleRouter.get("/api/trailer-schedule", async (req: AuthRequest, res:
 
 trailerScheduleRouter.post("/api/trailer-schedule", async (req: AuthRequest, res: Response) => {
   try {
+    if (!canManageSchedule(req.user?.role ?? "")) {
+      res.status(403).json({ ok: false, error: "Forbidden: Management or Developer role required" });
+      return;
+    }
     const parsed = createTrailerScheduleSchema.safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ ok: false, error: "Invalid input: trailerId, type, startAt required" });
@@ -92,6 +100,10 @@ trailerScheduleRouter.post("/api/trailer-schedule", async (req: AuthRequest, res
 
 trailerScheduleRouter.patch("/api/trailer-schedule/:id", async (req: AuthRequest, res: Response) => {
   try {
+    if (!canManageSchedule(req.user?.role ?? "")) {
+      res.status(403).json({ ok: false, error: "Forbidden: Management or Developer role required" });
+      return;
+    }
     const parsed = updateTrailerScheduleSchema.safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ ok: false, error: "Invalid input" });
@@ -126,6 +138,10 @@ trailerScheduleRouter.patch("/api/trailer-schedule/:id", async (req: AuthRequest
 
 trailerScheduleRouter.delete("/api/trailer-schedule/:id", async (req: AuthRequest, res: Response) => {
   try {
+    if (!canManageSchedule(req.user?.role ?? "")) {
+      res.status(403).json({ ok: false, error: "Forbidden: Management or Developer role required" });
+      return;
+    }
     const { id } = req.params;
     const existing = await prisma.trailerSchedule.findUnique({ where: { id } });
     if (!existing) {
