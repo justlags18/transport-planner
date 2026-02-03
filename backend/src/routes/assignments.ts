@@ -8,6 +8,7 @@ const assignSchema = z.object({
   consignmentId: z.string().trim().min(1),
   lorryId: z.string().trim().min(1),
   index: z.coerce.number().int().nonnegative().optional(),
+  isReload: z.boolean().optional(),
 });
 
 const unassignSchema = z.object({
@@ -31,7 +32,7 @@ assignmentsRouter.post("/api/assignments/assign", async (req, res, next) => {
       return;
     }
 
-    const { consignmentId, lorryId, index } = parsed.data;
+    const { consignmentId, lorryId, index, isReload } = parsed.data;
 
     await prisma.$transaction(async (tx) => {
       await tx.assignment.deleteMany({ where: { consignmentId } });
@@ -48,10 +49,16 @@ assignmentsRouter.post("/api/assignments/assign", async (req, res, next) => {
 
       for (let i = 0; i < ordered.length; i += 1) {
         const id = ordered[i];
+        const isNewAssignment = id === consignmentId;
         await tx.assignment.upsert({
           where: { lorryId_consignmentId: { lorryId, consignmentId: id } },
           update: { sortOrder: i },
-          create: { lorryId, consignmentId: id, sortOrder: i },
+          create: {
+            lorryId,
+            consignmentId: id,
+            sortOrder: i,
+            isReload: isNewAssignment ? (isReload ?? false) : false,
+          },
         });
       }
     });

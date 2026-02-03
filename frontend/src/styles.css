@@ -1304,6 +1304,44 @@ button:disabled {
   margin-top: 6px;
 }
 
+.lorries-board-column-run-header {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-top: 10px;
+}
+
+.lorries-board-column-run-header:first-child {
+  margin-top: 0;
+}
+
+.lorries-board-column-run-header--reload {
+  color: var(--accent);
+}
+
+.lorries-board-column-second-run-btn {
+  margin-top: 8px;
+  background: var(--accent);
+  color: #fff;
+}
+
+.lorries-board-column-second-run-btn:hover {
+  filter: brightness(1.1);
+}
+
+.lorries-board-column-reload-mode-badge {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 4px 8px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--accent);
+  background: rgba(99, 102, 241, 0.15);
+  border-radius: 4px;
+}
+
 .lorries-board-column-capacity-text {
   font-size: 0.8rem;
   color: var(--text-secondary);

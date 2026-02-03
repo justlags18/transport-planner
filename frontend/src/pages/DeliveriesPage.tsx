@@ -53,6 +53,7 @@ export const DeliveriesPage = () => {
 
   const [selectedUnassignedIds, setSelectedUnassignedIds] = useState<Set<string>>(() => new Set());
   const [activeDragData, setActiveDragData] = useState<ActiveDragData>(null);
+  const [lorryIdInReloadMode, setLorryIdInReloadMode] = useState<string | null>(null);
   const [backfillResult, setBackfillResult] = useState<{
     updated: number;
     noRawJson: number;
@@ -212,13 +213,22 @@ export const DeliveriesPage = () => {
         const { items, totalPallets, totalWeight } = dragData;
         const targetLorry = lorries.find((l) => l.id === targetLorryId);
         const capacity = targetLorry ? Math.max(targetLorry.capacityPallets, 1) : 0;
-        const used = targetLorry?.usedPallets ?? 0;
         const capacityWeight = targetLorry?.capacityWeightKg ?? 24_000;
-        const usedW = targetLorry?.usedWeight ?? 0;
-        if (used + totalPallets > capacity) return;
-        if (usedW + totalWeight > capacityWeight) return;
+        const isTargetInReloadMode = targetLorryId === lorryIdInReloadMode;
+        if (isTargetInReloadMode) {
+          const run2Pallets = targetLorry?.assignments.filter((a) => (a as { isReload?: boolean }).isReload).reduce((s, a) => s + a.effectivePallets, 0) ?? 0;
+          const run2Weight = targetLorry?.assignments.filter((a) => (a as { isReload?: boolean }).isReload).reduce((s, a) => s + (a.effectiveWeight ?? 0), 0) ?? 0;
+          if (run2Pallets + totalPallets > capacity) return;
+          if (run2Weight + totalWeight > capacityWeight) return;
+        } else {
+          const run1Pallets = targetLorry?.assignments.filter((a) => !(a as { isReload?: boolean }).isReload).reduce((s, a) => s + a.effectivePallets, 0) ?? 0;
+          const run1Weight = targetLorry?.assignments.filter((a) => !(a as { isReload?: boolean }).isReload).reduce((s, a) => s + (a.effectiveWeight ?? 0), 0) ?? 0;
+          if (run1Pallets + totalPallets > capacity) return;
+          if (run1Weight + totalWeight > capacityWeight) return;
+        }
 
         const prevLorries = lorries;
+        const isReload = targetLorryId === lorryIdInReloadMode;
         const newAssignments: AssignmentDTO[] = items.map((item, i) => ({
           id: `temp-${item.consignmentId}`,
           lorryId: targetLorryId,
@@ -226,6 +236,7 @@ export const DeliveriesPage = () => {
           sortOrder: i,
           effectivePallets: item.pallets,
           effectiveWeight: item.weight,
+          isReload,
           consignment: item.consignment as AssignmentDTO["consignment"],
         }));
 
@@ -240,7 +251,7 @@ export const DeliveriesPage = () => {
 
         try {
           for (const item of items) {
-            await apiPost("/api/assignments/assign", { consignmentId: item.consignmentId, lorryId: targetLorryId });
+            await apiPost("/api/assignments/assign", { consignmentId: item.consignmentId, lorryId: targetLorryId, isReload });
           }
           await refreshData();
         } catch (err) {
@@ -255,11 +266,19 @@ export const DeliveriesPage = () => {
         const { consignmentId, pallets, weight, sourceLorryId } = dragData;
         const targetLorry = lorries.find((l) => l.id === targetLorryId);
         const capacity = targetLorry ? Math.max(targetLorry.capacityPallets, 1) : 0;
-        const used = targetLorry?.usedPallets ?? 0;
         const capacityWeight = targetLorry?.capacityWeightKg ?? 24_000;
-        const usedW = targetLorry?.usedWeight ?? 0;
-        if (used + pallets > capacity) return;
-        if (usedW + weight > capacityWeight) return;
+        const isTargetInReloadMode = targetLorryId === lorryIdInReloadMode;
+        if (isTargetInReloadMode) {
+          const run2Pallets = targetLorry?.assignments.filter((a) => (a as { isReload?: boolean }).isReload).reduce((s, a) => s + a.effectivePallets, 0) ?? 0;
+          const run2Weight = targetLorry?.assignments.filter((a) => (a as { isReload?: boolean }).isReload).reduce((s, a) => s + (a.effectiveWeight ?? 0), 0) ?? 0;
+          if (run2Pallets + pallets > capacity) return;
+          if (run2Weight + weight > capacityWeight) return;
+        } else {
+          const run1Pallets = targetLorry?.assignments.filter((a) => !(a as { isReload?: boolean }).isReload).reduce((s, a) => s + a.effectivePallets, 0) ?? 0;
+          const run1Weight = targetLorry?.assignments.filter((a) => !(a as { isReload?: boolean }).isReload).reduce((s, a) => s + (a.effectiveWeight ?? 0), 0) ?? 0;
+          if (run1Pallets + pallets > capacity) return;
+          if (run1Weight + weight > capacityWeight) return;
+        }
 
         const prevLorries = lorries;
         const consignment =
@@ -330,7 +349,7 @@ export const DeliveriesPage = () => {
         }
       }
     },
-    [lorries, consignments, refreshData, activeDragData],
+    [lorries, consignments, refreshData, activeDragData, lorryIdInReloadMode],
   );
 
   const handleDragCancel = useCallback(() => {
@@ -551,7 +570,7 @@ export const DeliveriesPage = () => {
                   }
                 }}
               />
-              <LorriesBoard lorries={lorries} activeDragData={activeDragDataForBoard} onUnassign={handleUnassign} deliveryLocations={deliveryLocations} transportDate={transportDate} onToggleReload={handleToggleReload} onMarkLorryAsBackload={handleMarkLorryAsBackload} />
+              <LorriesBoard lorries={lorries} activeDragData={activeDragDataForBoard} onUnassign={handleUnassign} deliveryLocations={deliveryLocations} transportDate={transportDate} onToggleReload={handleToggleReload} onMarkLorryAsBackload={handleMarkLorryAsBackload} lorryIdInReloadMode={lorryIdInReloadMode} onStartSecondRun={setLorryIdInReloadMode} />
             </div>
             <DragOverlay dropAnimation={null}>
               {activeDragData?.type === "consignment" ? (

@@ -69,11 +69,15 @@ type LorryColumnProps = {
   onToggleReload?: (assignmentId: string, isReload: boolean) => void;
   /** Mark all assignments on this lorry as backload. */
   onMarkLorryAsBackload?: (lorryId: string) => void;
+  /** Lorry ID for which "second run" mode is active (new drops count as reload). */
+  lorryIdInReloadMode?: string | null;
+  /** Call when user clicks "Coming back for second run" on this lorry. */
+  onStartSecondRun?: (lorryId: string) => void;
 };
 
 const PLACEHOLDER_SLOT_COUNT = 4;
 
-const LorryColumnInner = memo(({ lorry, activeDragData = null, missingPalletsFallback = 1, onUnassign, deliveryLocations = [], transportDate = "", onToggleReload, onMarkLorryAsBackload }: LorryColumnProps) => {
+const LorryColumnInner = memo(({ lorry, activeDragData = null, missingPalletsFallback = 1, onUnassign, deliveryLocations = [], transportDate = "", onToggleReload, onMarkLorryAsBackload, lorryIdInReloadMode = null, onStartSecondRun }: LorryColumnProps) => {
   const { setNodeRef, isOver } = useDroppable({
     id: `lorry:${lorry.id}`,
     data: {
@@ -82,29 +86,55 @@ const LorryColumnInner = memo(({ lorry, activeDragData = null, missingPalletsFal
     },
   });
 
-  const used = lorry.usedPallets ?? 0;
   const capacity = Math.max(lorry.capacityPallets, 1);
-  const usedWeight = lorry.usedWeight ?? 0;
   const capacityWeightKg = lorry.capacityWeightKg ?? 24_000;
-  const percent = (used / capacity) * 100;
-  const barColor = capacityBarColorClass(percent);
-  const overCapacity = used > capacity;
-  const showBackloadButton = used > 26 && onMarkLorryAsBackload && lorry.assignments.length > 0;
+  const isInReloadMode = lorryIdInReloadMode === lorry.id;
+
+  // Split by run: first run (isReload false) vs second run / reload (isReload true)
+  const run1Assignments = lorry.assignments.filter((a) => !(a as { isReload?: boolean }).isReload);
+  const run2Assignments = lorry.assignments.filter((a) => (a as { isReload?: boolean }).isReload);
+  const usedPallets1 = run1Assignments.reduce((s, a) => s + a.effectivePallets, 0);
+  const usedWeight1 = run1Assignments.reduce((s, a) => s + (a.effectiveWeight ?? 0), 0);
+  const usedPallets2 = run2Assignments.reduce((s, a) => s + a.effectivePallets, 0);
+  const usedWeight2 = run2Assignments.reduce((s, a) => s + (a.effectiveWeight ?? 0), 0);
+  const used = lorry.usedPallets ?? 0;
+  const usedWeight = lorry.usedWeight ?? 0;
 
   const draggedPallets = activeDragData != null ? (activeDragData.pallets > 0 ? activeDragData.pallets : missingPalletsFallback) : 0;
   const draggedWeight = activeDragData?.weight ?? 0;
-  const previewUsed = isOver && activeDragData != null ? used + draggedPallets : used;
-  const previewUsedWeight = isOver && activeDragData != null ? usedWeight + draggedWeight : usedWeight;
-  const previewPercent = (previewUsed / capacity) * 100;
-  const previewBarColor = capacityBarColorClass(Math.min(100, previewPercent));
-  const wouldExceedCapacity = isOver && activeDragData != null && previewUsed > capacity;
-  const wouldExceedWeight = isOver && activeDragData != null && previewUsedWeight > capacityWeightKg;
-  const invalidDrop = wouldExceedCapacity || wouldExceedWeight;
+  const addToRun2 = isOver && isInReloadMode && activeDragData != null;
+  const previewPallets1 = addToRun2 ? usedPallets1 : (isOver && activeDragData != null ? usedPallets1 + draggedPallets : usedPallets1);
+  const previewWeight1 = addToRun2 ? usedWeight1 : (isOver && activeDragData != null ? usedWeight1 + draggedWeight : usedWeight1);
+  const previewPallets2 = addToRun2 ? usedPallets2 + draggedPallets : usedPallets2;
+  const previewWeight2 = addToRun2 ? usedWeight2 + draggedWeight : usedWeight2;
+
+  const percent1 = (usedPallets1 / capacity) * 100;
+  const barColor1 = capacityBarColorClass(percent1);
+  const previewPercent1 = (previewPallets1 / capacity) * 100;
+  const previewBarColor1 = capacityBarColorClass(Math.min(100, previewPercent1));
+  const weightPercent1 = capacityWeightKg > 0 ? (usedWeight1 / capacityWeightKg) * 100 : 0;
+  const weightBarColor1 = capacityBarColorClass(weightPercent1);
+  const previewWeightPercent1 = capacityWeightKg > 0 ? Math.min(100, (previewWeight1 / capacityWeightKg) * 100) : 0;
+  const previewWeightBarColor1 = capacityBarColorClass(previewWeightPercent1);
+
+  const percent2 = (usedPallets2 / capacity) * 100;
+  const barColor2 = capacityBarColorClass(percent2);
+  const previewPercent2 = (previewPallets2 / capacity) * 100;
+  const previewBarColor2 = capacityBarColorClass(Math.min(100, previewPercent2));
+  const weightPercent2 = capacityWeightKg > 0 ? (usedWeight2 / capacityWeightKg) * 100 : 0;
+  const weightBarColor2 = capacityBarColorClass(weightPercent2);
+  const previewWeightPercent2 = capacityWeightKg > 0 ? Math.min(100, (previewWeight2 / capacityWeightKg) * 100) : 0;
+  const previewWeightBarColor2 = capacityBarColorClass(previewWeightPercent2);
+
+  const overCapacityRun1 = usedPallets1 > capacity || usedWeight1 > capacityWeightKg;
+  const overCapacityRun2 = usedPallets2 > capacity || usedWeight2 > capacityWeightKg;
+  const wouldExceedRun1 = isOver && !addToRun2 && activeDragData != null && (previewPallets1 > capacity || previewWeight1 > capacityWeightKg);
+  const wouldExceedRun2 = isOver && addToRun2 && activeDragData != null && (previewPallets2 > capacity || previewWeight2 > capacityWeightKg);
+  const invalidDrop = wouldExceedRun1 || wouldExceedRun2;
   const showPreview = isOver && activeDragData != null;
-  const weightPercent = capacityWeightKg > 0 ? (usedWeight / capacityWeightKg) * 100 : 0;
-  const weightBarColor = capacityBarColorClass(weightPercent);
-  const previewWeightPercent = capacityWeightKg > 0 ? Math.min(100, (previewUsedWeight / capacityWeightKg) * 100) : 0;
-  const previewWeightBarColor = capacityBarColorClass(previewWeightPercent);
+  const overCapacity = used > capacity;
+  const showBackloadButton = used > 26 && onMarkLorryAsBackload && lorry.assignments.length > 0;
+  const showSecondRunButton = onStartSecondRun && lorry.assignments.length > 0 && !isInReloadMode;
   const isDragActive = activeDragData != null;
   const isEmpty = lorry.assignments.length === 0;
 
@@ -135,54 +165,102 @@ const LorryColumnInner = memo(({ lorry, activeDragData = null, missingPalletsFal
       </header>
 
       <div className="lorries-board-column-capacity-section">
+        {/* Run 1 */}
+        <div className="lorries-board-column-run-header">Run 1</div>
         <div className="lorries-board-column-capacity">
           <span className="lorries-board-column-capacity-text">
-            {used} / {capacity} pallets
+            {usedPallets1} / {capacity} pallets
           </span>
-          {showPreview && (
-            <span className="lorries-board-column-capacity-preview" title={wouldExceedCapacity ? "Over capacity" : undefined}>
-              → {previewUsed} (preview)
+          {showPreview && !addToRun2 && (
+            <span className="lorries-board-column-capacity-preview" title={wouldExceedRun1 ? "Over capacity" : undefined}>
+              → {previewPallets1} (preview)
             </span>
           )}
         </div>
-        <div
-          className="lorries-board-column-bar-wrap"
-          title={wouldExceedCapacity ? "Over capacity" : undefined}
-          aria-describedby={wouldExceedCapacity ? `lorry-${lorry.id}-overflow` : undefined}
-        >
-          <div className="lorries-board-column-bar" role="progressbar" aria-valuenow={used} aria-valuemin={0} aria-valuemax={capacity} aria-label="Pallets capacity">
+        <div className="lorries-board-column-bar-wrap" title={overCapacityRun1 ? "Over capacity" : undefined}>
+          <div className="lorries-board-column-bar" role="progressbar" aria-valuenow={usedPallets1} aria-valuemin={0} aria-valuemax={capacity} aria-label="Run 1 pallets">
             <div
-              className={`lorries-board-column-bar-fill lorries-board-column-bar-fill--${showPreview ? previewBarColor : barColor}`}
-              style={{ width: `${Math.min(100, (showPreview ? previewUsed / capacity : used / capacity) * 100)}%` }}
+              className={`lorries-board-column-bar-fill lorries-board-column-bar-fill--${showPreview && !addToRun2 ? previewBarColor1 : barColor1}`}
+              style={{ width: `${Math.min(100, (showPreview && !addToRun2 ? previewPallets1 / capacity : usedPallets1 / capacity) * 100)}%` }}
             />
           </div>
-          {wouldExceedCapacity && (
-            <span id={`lorry-${lorry.id}-overflow`} className="lorries-board-column-overflow-tooltip" role="status">
-              Over capacity
-            </span>
-          )}
         </div>
         <div className="lorries-board-column-capacity lorries-board-column-capacity--weight">
           <span className="lorries-board-column-capacity-text">
-            {usedWeight.toLocaleString()} / {capacityWeightKg.toLocaleString()} kg
+            {usedWeight1.toLocaleString()} / {capacityWeightKg.toLocaleString()} kg
           </span>
-          {showPreview && (
-            <span className="lorries-board-column-capacity-preview" title={wouldExceedWeight ? "Over weight" : undefined}>
-              → {previewUsedWeight.toLocaleString()} (preview)
+          {showPreview && !addToRun2 && (
+            <span className="lorries-board-column-capacity-preview" title={wouldExceedRun1 ? "Over weight" : undefined}>
+              → {previewWeight1.toLocaleString()} (preview)
             </span>
           )}
         </div>
-        <div className="lorries-board-column-bar-wrap" title={wouldExceedWeight ? "Over weight" : undefined}>
-          <div className="lorries-board-column-bar" role="progressbar" aria-valuenow={usedWeight} aria-valuemin={0} aria-valuemax={capacityWeightKg} aria-label="Weight capacity">
+        <div className="lorries-board-column-bar-wrap">
+          <div className="lorries-board-column-bar" role="progressbar" aria-valuenow={usedWeight1} aria-valuemin={0} aria-valuemax={capacityWeightKg} aria-label="Run 1 weight">
             <div
-              className={`lorries-board-column-bar-fill lorries-board-column-bar-fill--${showPreview ? previewWeightBarColor : weightBarColor}`}
-              style={{ width: `${Math.min(100, (showPreview ? previewUsedWeight / capacityWeightKg : usedWeight / capacityWeightKg) * 100)}%` }}
+              className={`lorries-board-column-bar-fill lorries-board-column-bar-fill--${showPreview && !addToRun2 ? previewWeightBarColor1 : weightBarColor1}`}
+              style={{ width: `${Math.min(100, (showPreview && !addToRun2 ? previewWeight1 / capacityWeightKg : usedWeight1 / capacityWeightKg) * 100)}%` }}
             />
           </div>
-          {wouldExceedWeight && !wouldExceedCapacity && (
-            <span className="lorries-board-column-overflow-tooltip" role="status">Over weight</span>
+        </div>
+
+        {/* Run 2 (reload) */}
+        <div className="lorries-board-column-run-header lorries-board-column-run-header--reload">
+          Run 2 (reload){isInReloadMode ? " — adding here" : ""}
+        </div>
+        <div className="lorries-board-column-capacity">
+          <span className="lorries-board-column-capacity-text">
+            {usedPallets2} / {capacity} pallets
+          </span>
+          {showPreview && addToRun2 && (
+            <span className="lorries-board-column-capacity-preview" title={wouldExceedRun2 ? "Over capacity" : undefined}>
+              → {previewPallets2} (preview)
+            </span>
           )}
         </div>
+        <div className="lorries-board-column-bar-wrap" title={overCapacityRun2 ? "Over capacity" : undefined}>
+          <div className="lorries-board-column-bar" role="progressbar" aria-valuenow={usedPallets2} aria-valuemin={0} aria-valuemax={capacity} aria-label="Run 2 pallets">
+            <div
+              className={`lorries-board-column-bar-fill lorries-board-column-bar-fill--${showPreview && addToRun2 ? previewBarColor2 : barColor2}`}
+              style={{ width: `${Math.min(100, (showPreview && addToRun2 ? previewPallets2 / capacity : usedPallets2 / capacity) * 100)}%` }}
+            />
+          </div>
+        </div>
+        <div className="lorries-board-column-capacity lorries-board-column-capacity--weight">
+          <span className="lorries-board-column-capacity-text">
+            {usedWeight2.toLocaleString()} / {capacityWeightKg.toLocaleString()} kg
+          </span>
+          {showPreview && addToRun2 && (
+            <span className="lorries-board-column-capacity-preview" title={wouldExceedRun2 ? "Over weight" : undefined}>
+              → {previewWeight2.toLocaleString()} (preview)
+            </span>
+          )}
+        </div>
+        <div className="lorries-board-column-bar-wrap">
+          <div className="lorries-board-column-bar" role="progressbar" aria-valuenow={usedWeight2} aria-valuemin={0} aria-valuemax={capacityWeightKg} aria-label="Run 2 weight">
+            <div
+              className={`lorries-board-column-bar-fill lorries-board-column-bar-fill--${showPreview && addToRun2 ? previewWeightBarColor2 : weightBarColor2}`}
+              style={{ width: `${Math.min(100, (showPreview && addToRun2 ? previewWeight2 / capacityWeightKg : usedWeight2 / capacityWeightKg) * 100)}%` }}
+            />
+          </div>
+        </div>
+
+        {showSecondRunButton && (
+          <button
+            type="button"
+            className="lorries-board-column-backload-btn lorries-board-column-second-run-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              onStartSecondRun?.(lorry.id);
+            }}
+            title="Truck is coming back for a second run; next jobs dropped here will count as reload"
+          >
+            Coming back for second run
+          </button>
+        )}
+        {isInReloadMode && (
+          <span className="lorries-board-column-reload-mode-badge" role="status">Second run — drop jobs here</span>
+        )}
         {showBackloadButton && (
           <button
             type="button"
