@@ -22,13 +22,15 @@ export async function syncLorryStatusFromSchedule(): Promise<Map<string, string>
     }
   }
 
+  if (statusByLorryId.size === 0) return statusByLorryId;
+
   const lorries = await prisma.lorry.findMany({ orderBy: { createdAt: "asc" } });
   for (const lorry of lorries) {
-    const effectiveStatus = statusByLorryId.get(lorry.id) ?? "on";
-    if (lorry.status !== effectiveStatus) {
+    const scheduledStatus = statusByLorryId.get(lorry.id);
+    if (scheduledStatus && lorry.status !== scheduledStatus) {
       await prisma.lorry.update({
         where: { id: lorry.id },
-        data: { status: effectiveStatus },
+        data: { status: scheduledStatus },
       });
     }
   }
