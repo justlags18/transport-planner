@@ -36,7 +36,7 @@ function locationResponse(
 const createDeliveryLocationSchema = z.object({
   displayName: z.string().trim().min(1),
   destinationKey: z.string().trim().optional(),
-  address: z.string().trim().optional(),
+  address: z.string().trim().min(1),
   notes: z.string().trim().optional(),
   postcode: z.string().optional(),
   lat: z.number().optional(),
@@ -46,7 +46,7 @@ const createDeliveryLocationSchema = z.object({
 const updateDeliveryLocationSchema = z.object({
   displayName: z.string().trim().min(1).optional(),
   destinationKey: z.string().trim().optional().nullable(),
-  address: z.string().trim().optional().nullable(),
+  address: z.string().trim().min(1).optional(),
   notes: z.string().trim().optional().nullable(),
   postcode: z.string().optional().nullable(),
   lat: z.number().optional().nullable(),
@@ -72,7 +72,7 @@ deliveryLocationsRouter.post("/api/delivery-locations", async (req: AuthRequest,
   try {
     const parsed = createDeliveryLocationSchema.safeParse(req.body);
     if (!parsed.success) {
-      res.status(400).json({ ok: false, error: "Invalid input: displayName required" });
+      res.status(400).json({ ok: false, error: "Invalid input: displayName and address required" });
       return;
     }
 

@@ -181,7 +181,7 @@ model DeliveryLocation {
   id             String    @id @default(cuid())
   displayName    String
   destinationKey String?   // optional link to consignments
-  address        String?
+  address        String
   notes          String?
   postcode       String?
   lat            Float?

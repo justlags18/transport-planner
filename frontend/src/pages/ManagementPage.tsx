@@ -1632,12 +1632,13 @@ export const ManagementPage = () => {
                 />
               </label>
               <label>
-                Address (optional)
+                Address
                 <input
                   type="text"
                   value={locationAddress}
                   onChange={(e) => setLocationAddress(e.target.value)}
                   placeholder="e.g. 12 High St, London"
+                  required
                   className="management-input"
                 />
               </label>
