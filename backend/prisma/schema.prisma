@@ -46,14 +46,17 @@ model Lorry {
   truckClass      String       @default("Class1") // Class1 | Class2
   capacityPallets Int
   status          String       @default("on")
+  driverId        String?
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
 
+  driver          Driver?      @relation(fields: [driverId], references: [id], onDelete: SetNull)
   assignments     Assignment[]
   trailers        Trailer[]
   scheduleEntries FleetSchedule[]
 
   @@index([name])
+  @@index([driverId])
 }
 
 model Trailer {
