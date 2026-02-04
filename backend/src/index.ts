@@ -11,14 +11,13 @@ const port = Number(process.env.PORT) || 3001;
 
 const start = async () => {
   try {
-    const normalized = await prisma.deliveryLocation.updateMany({
-      where: {
-        OR: [{ address: null }, { address: "" }],
-      },
-      data: { address: "Unknown" },
-    });
-    if (normalized.count > 0) {
-      console.log(`Normalized ${normalized.count} delivery locations with empty address.`);
+    const normalized = await prisma.$executeRaw`
+      UPDATE DeliveryLocation
+      SET address = 'Unknown'
+      WHERE address IS NULL OR TRIM(address) = ''
+    `;
+    if (Number(normalized) > 0) {
+      console.log(`Normalized ${normalized} delivery locations with empty address.`);
     }
     await ensureInitialUser();
   } catch (err) {

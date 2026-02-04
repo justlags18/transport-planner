@@ -144,7 +144,7 @@ deliveryLocationsRouter.patch("/api/delivery-locations/:id", async (req: AuthReq
     const updateData: {
       displayName?: string;
       destinationKey?: string | null;
-      address?: string | null;
+      address?: string;
       notes?: string | null;
       postcode?: string | null;
       lat?: number | null;
