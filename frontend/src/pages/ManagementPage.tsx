@@ -73,6 +73,7 @@ type DeliveryLocationRow = {
   id: string;
   displayName: string;
   destinationKey: string | null;
+  address: string | null;
   notes: string | null;
   createdAt?: string;
   updatedAt?: string;
@@ -179,12 +180,12 @@ export const ManagementPage = () => {
   const [locationsLoading, setLocationsLoading] = useState(false);
   const [locationDisplayName, setLocationDisplayName] = useState("");
   const [locationDestinationKey, setLocationDestinationKey] = useState("");
-  const [locationNotes, setLocationNotes] = useState("");
+  const [locationAddress, setLocationAddress] = useState("");
   const [addingLocation, setAddingLocation] = useState(false);
   const [editingLocationId, setEditingLocationId] = useState<string | null>(null);
   const [editLocationDisplayName, setEditLocationDisplayName] = useState("");
   const [editLocationDestinationKey, setEditLocationDestinationKey] = useState("");
-  const [editLocationNotes, setEditLocationNotes] = useState("");
+  const [editLocationAddress, setEditLocationAddress] = useState("");
   const [deletingLocationId, setDeletingLocationId] = useState<string | null>(null);
 
   // Consignments (force refresh / archive old / clear all assignments)
@@ -734,13 +735,13 @@ export const ManagementPage = () => {
       const res = await apiPost<CreateDeliveryLocationResponse>("/api/delivery-locations", {
         displayName,
         destinationKey: locationDestinationKey.trim() || undefined,
-        notes: locationNotes.trim() || undefined,
+        address: locationAddress.trim() || undefined,
       });
       if (res.ok && res.location) {
         setLocations((prev) => [...prev, res.location!].sort((a, b) => a.displayName.localeCompare(b.displayName)));
         setLocationDisplayName("");
         setLocationDestinationKey("");
-        setLocationNotes("");
+        setLocationAddress("");
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to add delivery location");
@@ -753,7 +754,7 @@ export const ManagementPage = () => {
     setEditingLocationId(loc.id);
     setEditLocationDisplayName(loc.displayName);
     setEditLocationDestinationKey(loc.destinationKey ?? "");
-    setEditLocationNotes(loc.notes ?? "");
+    setEditLocationAddress(loc.address ?? "");
   };
 
   const handleUpdateLocation = async () => {
@@ -763,7 +764,7 @@ export const ManagementPage = () => {
       const res = await apiPatch<UpdateDeliveryLocationResponse>(`/api/delivery-locations/${editingLocationId}`, {
         displayName: editLocationDisplayName.trim(),
         destinationKey: editLocationDestinationKey.trim() || null,
-        notes: editLocationNotes.trim() || null,
+        address: editLocationAddress.trim() || null,
       });
       if (res.ok && res.location) {
         setLocations((prev) =>
@@ -1631,12 +1632,12 @@ export const ManagementPage = () => {
                 />
               </label>
               <label>
-                Notes (optional)
+                Address (optional)
                 <input
                   type="text"
-                  value={locationNotes}
-                  onChange={(e) => setLocationNotes(e.target.value)}
-                  placeholder="e.g. Gate 2, loading bay"
+                  value={locationAddress}
+                  onChange={(e) => setLocationAddress(e.target.value)}
+                  placeholder="e.g. 12 High St, London"
                   className="management-input"
                 />
               </label>
@@ -1661,7 +1662,7 @@ export const ManagementPage = () => {
                     <tr>
                       <th>Display name</th>
                       <th>Destination key</th>
-                      <th>Notes</th>
+                      <th>Address</th>
                       <th>Actions</th>
                     </tr>
                   </thead>
@@ -1697,13 +1698,13 @@ export const ManagementPage = () => {
                           {editingLocationId === loc.id ? (
                             <input
                               type="text"
-                              value={editLocationNotes}
-                              onChange={(e) => setEditLocationNotes(e.target.value)}
+                              value={editLocationAddress}
+                              onChange={(e) => setEditLocationAddress(e.target.value)}
                               className="management-input management-input-inline"
                               placeholder="Optional"
                             />
                           ) : (
-                            loc.notes ?? "—"
+                            loc.address ?? "—"
                           )}
                         </td>
                         <td>

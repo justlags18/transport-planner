@@ -11,7 +11,7 @@ import {
 export type GeoWarning = "POSTCODE_NOT_FOUND" | "GEOCODE_FAILED";
 
 function locationResponse(
-  location: { id: string; displayName: string; destinationKey: string | null; notes: string | null; postcode: string | null; lat: number | null; lng: number | null; geoUpdatedAt: Date | null; createdAt: Date; updatedAt: Date },
+  location: { id: string; displayName: string; destinationKey: string | null; address: string | null; notes: string | null; postcode: string | null; lat: number | null; lng: number | null; geoUpdatedAt: Date | null; createdAt: Date; updatedAt: Date },
   geoWarning?: GeoWarning
 ) {
   return {
@@ -20,6 +20,7 @@ function locationResponse(
       id: location.id,
       displayName: location.displayName,
       destinationKey: location.destinationKey,
+      address: location.address,
       notes: location.notes,
       postcode: location.postcode,
       lat: location.lat,
@@ -35,6 +36,7 @@ function locationResponse(
 const createDeliveryLocationSchema = z.object({
   displayName: z.string().trim().min(1),
   destinationKey: z.string().trim().optional(),
+  address: z.string().trim().optional(),
   notes: z.string().trim().optional(),
   postcode: z.string().optional(),
   lat: z.number().optional(),
@@ -44,6 +46,7 @@ const createDeliveryLocationSchema = z.object({
 const updateDeliveryLocationSchema = z.object({
   displayName: z.string().trim().min(1).optional(),
   destinationKey: z.string().trim().optional().nullable(),
+  address: z.string().trim().optional().nullable(),
   notes: z.string().trim().optional().nullable(),
   postcode: z.string().optional().nullable(),
   lat: z.number().optional().nullable(),
@@ -73,7 +76,7 @@ deliveryLocationsRouter.post("/api/delivery-locations", async (req: AuthRequest,
       return;
     }
 
-    const { displayName, destinationKey, notes, postcode: postcodeRaw, lat: latBody, lng: lngBody } = parsed.data;
+    const { displayName, destinationKey, address, notes, postcode: postcodeRaw, lat: latBody, lng: lngBody } = parsed.data;
     const normalizedPostcode =
       postcodeRaw != null && String(postcodeRaw).trim() !== ""
         ? normalizeUKPostcode(String(postcodeRaw).trim())
@@ -107,6 +110,7 @@ deliveryLocationsRouter.post("/api/delivery-locations", async (req: AuthRequest,
       data: {
         displayName,
         destinationKey: destinationKey ?? null,
+        address: address ?? null,
         notes: notes ?? null,
         postcode: normalizedPostcode,
         lat: geoLat,
@@ -140,6 +144,7 @@ deliveryLocationsRouter.patch("/api/delivery-locations/:id", async (req: AuthReq
     const updateData: {
       displayName?: string;
       destinationKey?: string | null;
+      address?: string | null;
       notes?: string | null;
       postcode?: string | null;
       lat?: number | null;
@@ -149,6 +154,7 @@ deliveryLocationsRouter.patch("/api/delivery-locations/:id", async (req: AuthReq
 
     if (parsed.data.displayName !== undefined) updateData.displayName = parsed.data.displayName;
     if (parsed.data.destinationKey !== undefined) updateData.destinationKey = parsed.data.destinationKey;
+    if (parsed.data.address !== undefined) updateData.address = parsed.data.address;
     if (parsed.data.notes !== undefined) updateData.notes = parsed.data.notes;
 
     const postcodeSupplied = parsed.data.postcode !== undefined;

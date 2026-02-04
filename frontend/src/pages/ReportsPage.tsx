@@ -18,7 +18,7 @@ type DeliveryLocationRow = {
   id: string;
   displayName: string;
   destinationKey: string | null;
-  notes: string | null;
+  address: string | null;
   createdAt: string;
 };
 
@@ -250,7 +250,7 @@ export const ReportsPage = () => {
                     <tr>
                       <th>Display name</th>
                       <th>Destination key</th>
-                      <th>Notes</th>
+                      <th>Address</th>
                       <th>Created</th>
                     </tr>
                   </thead>
@@ -259,7 +259,7 @@ export const ReportsPage = () => {
                       <tr key={loc.id}>
                         <td>{loc.displayName}</td>
                         <td>{loc.destinationKey ?? "—"}</td>
-                        <td>{loc.notes ?? "—"}</td>
+                        <td>{loc.address ?? "—"}</td>
                         <td>{loc.createdAt ? new Date(loc.createdAt).toLocaleString() : "—"}</td>
                       </tr>
                     ))}
