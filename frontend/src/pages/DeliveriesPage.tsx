@@ -21,6 +21,8 @@ type ConsignmentResponse = { items: DeliveryJobConsignment[] };
 type DeliveryLocationDTO = { id: string; displayName: string; destinationKey: string | null; notes: string | null };
 type DeliveryLocationsResponse = { ok: boolean; locations: DeliveryLocationDTO[] };
 type CustomerDeliveryLocationMapResponse = { ok: boolean; map: Record<string, string[]> };
+type DriverOption = { id: string; name: string };
+type DriversResponse = { ok: boolean; drivers: DriverOption[] };
 
 type ConsignmentDragItem = {
   consignmentId: string;
@@ -40,6 +42,7 @@ const MISSING_PALLETS_FALLBACK = 1;
 export const DeliveriesPage = () => {
   const [consignments, setConsignments] = useState<DeliveryJobConsignment[]>([]);
   const [lorries, setLorries] = useState<LorryDTO[]>([]);
+  const [drivers, setDrivers] = useState<DriverOption[]>([]);
   const [deliveryLocations, setDeliveryLocations] = useState<DeliveryLocationDTO[]>([]);
   const [customerLocationMap, setCustomerLocationMap] = useState<Record<string, string[]>>({});
   const [deliveryLocationFilter, setDeliveryLocationFilter] = useState<string>("all");
@@ -73,14 +76,16 @@ export const DeliveriesPage = () => {
     refreshInFlight.current = true;
     const dateParam = transportDate ? `&date=${encodeURIComponent(transportDate)}` : "";
     try {
-      const [consRes, lorriesRes, locRes, mapRes] = await Promise.all([
+      const [consRes, lorriesRes, driversRes, locRes, mapRes] = await Promise.all([
         apiGet<ConsignmentResponse>(`/api/consignments?active=1&deliveryOnly=1${dateParam}`),
         apiGet<LorryDTO[]>("/api/lorries"),
+        apiGet<DriversResponse>("/api/drivers").catch(() => ({ ok: false, drivers: [] })),
         apiGet<DeliveryLocationsResponse>("/api/delivery-locations").catch(() => ({ ok: false, locations: [] })),
         apiGet<CustomerDeliveryLocationMapResponse>("/api/customer-prefs/delivery-location-map").catch(() => ({ ok: false, map: {} })),
       ]);
       setConsignments(consRes.items ?? []);
       setLorries(lorriesRes ?? []);
+      setDrivers(driversRes?.drivers ?? []);
       setDeliveryLocations(locRes?.locations ?? []);
       setCustomerLocationMap(mapRes?.map ?? {});
       setError(null);
@@ -395,6 +400,18 @@ export const DeliveriesPage = () => {
     [refreshData],
   );
 
+  const handleDriverChange = useCallback(
+    async (lorryId: string, driverId: string | null) => {
+      try {
+        await apiPatch(`/api/lorries/${lorryId}`, { driverId: driverId ?? null });
+        await refreshData();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to assign driver");
+      }
+    },
+    [refreshData],
+  );
+
   const handleBackfillPallets = useCallback(async () => {
     setBackfilling(true);
     setBackfillResult(null);
@@ -554,7 +571,7 @@ export const DeliveriesPage = () => {
                   }
                 }}
               />
-              <LorriesBoard lorries={lorries} activeDragData={activeDragDataForBoard} onUnassign={handleUnassign} deliveryLocations={deliveryLocations} transportDate={transportDate} onToggleReload={handleToggleReload} lorryIdInReloadMode={lorryIdInReloadMode} onStartSecondRun={(id) => setLorryIdInReloadMode(id)} />
+              <LorriesBoard lorries={lorries} drivers={drivers} onDriverChange={handleDriverChange} activeDragData={activeDragDataForBoard} onUnassign={handleUnassign} deliveryLocations={deliveryLocations} transportDate={transportDate} onToggleReload={handleToggleReload} lorryIdInReloadMode={lorryIdInReloadMode} onStartSecondRun={(id) => setLorryIdInReloadMode(id)} />
             </div>
             <DragOverlay dropAnimation={null}>
               {activeDragData?.type === "consignment" ? (

@@ -54,8 +54,12 @@ function capacityBarColorClass(percent: number): "green" | "amber" | "red" {
   return "red";
 }
 
+type DriverOption = { id: string; name: string };
+
 type LorryColumnProps = {
   lorry: LorryDTO;
+  drivers?: DriverOption[];
+  onDriverChange?: (lorryId: string, driverId: string | null) => void;
   activeDragData?: ActiveDragData;
   /** Pallets to count when dragged job has missing/zero pallets (for preview and overflow check). */
   missingPalletsFallback?: number;
@@ -75,7 +79,7 @@ type LorryColumnProps = {
 
 const PLACEHOLDER_SLOT_COUNT = 4;
 
-const LorryColumnInner = memo(({ lorry, activeDragData = null, missingPalletsFallback = 1, onUnassign, deliveryLocations = [], transportDate = "", onToggleReload, lorryIdInReloadMode = null, onStartSecondRun }: LorryColumnProps) => {
+const LorryColumnInner = memo(({ lorry, drivers = [], onDriverChange, activeDragData = null, missingPalletsFallback = 1, onUnassign, deliveryLocations = [], transportDate = "", onToggleReload, lorryIdInReloadMode = null, onStartSecondRun }: LorryColumnProps) => {
   const { setNodeRef, isOver } = useDroppable({
     id: `lorry:${lorry.id}`,
     data: {
@@ -163,6 +167,30 @@ const LorryColumnInner = memo(({ lorry, activeDragData = null, missingPalletsFal
           {statusLabel}
         </span>
       </header>
+      {onDriverChange && (
+        <div className="lorries-board-column-driver">
+          <label className="lorries-board-column-driver-label" htmlFor={`driver-${lorry.id}`}>
+            Driver
+          </label>
+          <select
+            id={`driver-${lorry.id}`}
+            className="lorries-board-column-driver-select"
+            value={lorry.driverId ?? lorry.driver?.id ?? ""}
+            onChange={(e) => {
+              const val = e.target.value;
+              onDriverChange(lorry.id, val === "" ? null : val);
+            }}
+            aria-label={`Assign driver to ${lorry.name}`}
+          >
+            <option value="">— None —</option>
+            {drivers.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       <div className="lorries-board-column-capacity-section">
         {/* Run 1 */}

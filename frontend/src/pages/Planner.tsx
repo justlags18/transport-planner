@@ -42,6 +42,8 @@ export type LorryDTO = {
   capacityWeightKg: number;
   usedPallets: number;
   usedWeight: number;
+  driverId?: string | null;
+  driver?: { id: string; name: string } | null;
   createdAt: string;
   updatedAt: string;
   assignments: AssignmentDTO[];

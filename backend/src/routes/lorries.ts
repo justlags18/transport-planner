@@ -26,6 +26,11 @@ function canManageSchedule(role: string): boolean {
   return role === "Management" || role === "Developer";
 }
 
+/** Planner or above can assign a driver to a lorry (Deliveries view). */
+function canAssignDriver(role: string): boolean {
+  return role === "Planner" || role === "Management" || role === "Developer";
+}
+
 export const lorriesRouter = Router();
 
 const defaultCapacityPallets = (() => {
@@ -43,6 +48,7 @@ const updateLorrySchema = z.object({
   name: z.string().trim().min(1).optional(),
   truckClass: z.enum(TRUCK_CLASSES).optional(),
   capacityPallets: z.coerce.number().int().positive().optional(),
+  driverId: z.string().trim().nullable().optional(),
 });
 
 const updateStatusSchema = z.object({
@@ -56,6 +62,7 @@ lorriesRouter.get("/api/lorries", async (_req, res, next) => {
     const lorries = await prisma.lorry.findMany({
       orderBy: { createdAt: "asc" },
       include: {
+        driver: { select: { id: true, name: true } },
         assignments: {
           orderBy: { sortOrder: "asc" },
           include: {
@@ -199,10 +206,7 @@ lorriesRouter.post("/api/lorries", async (req: AuthRequest, res: Response, next)
 
 lorriesRouter.patch("/api/lorries/:id", async (req: AuthRequest, res: Response, next) => {
   try {
-    if (!canManageLorries(req.user?.role ?? "")) {
-      res.status(403).json({ ok: false, error: "Forbidden: Management or Developer role required" });
-      return;
-    }
+    const role = req.user?.role ?? "";
     const parsed = updateLorrySchema.safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ ok: false, error: "Invalid payload" });
@@ -216,12 +220,39 @@ lorriesRouter.patch("/api/lorries/:id", async (req: AuthRequest, res: Response, 
       return;
     }
 
+    const { name, truckClass, capacityPallets, driverId } = parsed.data;
+    const isDriverOnlyUpdate =
+      driverId !== undefined &&
+      name === undefined &&
+      truckClass === undefined &&
+      capacityPallets === undefined;
+
+    if (isDriverOnlyUpdate) {
+      if (!canAssignDriver(role)) {
+        res.status(403).json({ ok: false, error: "Forbidden: Planner or above required to assign driver" });
+        return;
+      }
+    } else {
+      if (!canManageLorries(role)) {
+        res.status(403).json({ ok: false, error: "Forbidden: Management or Developer role required" });
+        return;
+      }
+    }
+    if (driverId !== undefined && driverId != null && driverId !== "") {
+      const driver = await prisma.driver.findUnique({ where: { id: driverId } });
+      if (!driver) {
+        res.status(400).json({ ok: false, error: "Driver not found" });
+        return;
+      }
+    }
+
     const lorry = await prisma.lorry.update({
       where: { id },
       data: {
-        ...(parsed.data.name !== undefined && { name: parsed.data.name }),
-        ...(parsed.data.truckClass !== undefined && { truckClass: parsed.data.truckClass }),
-        ...(parsed.data.capacityPallets !== undefined && { capacityPallets: parsed.data.capacityPallets }),
+        ...(name !== undefined && { name }),
+        ...(truckClass !== undefined && { truckClass }),
+        ...(capacityPallets !== undefined && { capacityPallets }),
+        ...(driverId !== undefined && { driverId: driverId || null }),
       },
     });
 

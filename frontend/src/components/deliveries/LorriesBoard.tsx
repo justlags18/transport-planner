@@ -3,9 +3,12 @@ import type { LorryDTO } from "../../pages/Planner";
 import { LorryColumn, type ActiveDragData } from "./LorryColumn";
 
 type DeliveryLocationInfo = { id: string; displayName: string };
+type DriverOption = { id: string; name: string };
 
 type LorriesBoardProps = {
   lorries: LorryDTO[];
+  drivers?: DriverOption[];
+  onDriverChange?: (lorryId: string, driverId: string | null) => void;
   activeDragData?: ActiveDragData;
   /** Pallets to count when a job has missing/zero pallets (for capacity preview). */
   missingPalletsFallback?: number;
@@ -27,7 +30,7 @@ type LorriesBoardProps = {
  * Renders lorries as vertical columns in a horizontally scrollable board.
  * Each column shows truck reg, status badge, capacity bar, and a drop zone for jobs.
  */
-const LorriesBoardInner = ({ lorries, activeDragData = null, missingPalletsFallback = 1, onUnassign, deliveryLocations = [], transportDate = "", onToggleReload, lorryIdInReloadMode = null, onStartSecondRun }: LorriesBoardProps) => {
+const LorriesBoardInner = ({ lorries, drivers = [], onDriverChange, activeDragData = null, missingPalletsFallback = 1, onUnassign, deliveryLocations = [], transportDate = "", onToggleReload, lorryIdInReloadMode = null, onStartSecondRun }: LorriesBoardProps) => {
   if (lorries.length === 0) {
     return (
       <div className="lorries-board lorries-board--empty">
@@ -43,6 +46,8 @@ const LorriesBoardInner = ({ lorries, activeDragData = null, missingPalletsFallb
           <LorryColumn
             key={lorry.id}
             lorry={lorry}
+            drivers={drivers}
+            onDriverChange={onDriverChange}
             activeDragData={activeDragData}
             missingPalletsFallback={missingPalletsFallback}
             onUnassign={onUnassign}

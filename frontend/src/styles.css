@@ -1283,6 +1283,26 @@ button:disabled {
   border: 1px solid var(--border-default);
 }
 
+.lorries-board-column-driver {
+  padding: 8px 18px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.lorries-board-column-driver-label {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+.lorries-board-column-driver-select {
+  width: 100%;
+  padding: 6px 8px;
+  font-size: 0.875rem;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+
 .lorries-board-column-capacity-section {
   flex-shrink: 0;
   padding: 14px 18px;
