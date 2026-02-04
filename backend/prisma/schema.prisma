@@ -208,6 +208,18 @@ model CustomerPrefDeliveryLocation {
   @@index([deliveryLocationId])
 }
 
+model Driver {
+  id          String   @id @default(cuid())
+  name        String
+  phoneNumber String?
+  agency      String?
+  idNumber    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([name])
+}
+
 // Single row (id = "latest") for developer backoffice scrape log; persisted so all instances see it.
 model ScrapeLogEntry {
   id                 String   @id @default("latest")

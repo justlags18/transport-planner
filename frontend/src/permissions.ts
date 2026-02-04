@@ -20,9 +20,15 @@ export const NAV_ITEMS: NavItem[] = [
   { path: "/deliveries", label: "Deliveries" },
   { path: "/consignments", label: "Consignments" },
   { path: "/fleet", label: "Fleet" },
+  { path: "/drivers", label: "Drivers" },
   { path: "/reports", label: "Reports" },
   { path: "/management", label: "Management", roles: ["Planner", "Management", "Developer"] },
 ];
+
+/** Only Management and Developer can add or edit driver details. */
+export function canManageDrivers(role: Role): boolean {
+  return role === "Management" || role === "Developer";
+}
 
 export function canAccessNavItem(role: Role, item: NavItem): boolean {
   if (!item.roles || item.roles.length === 0) return true;
