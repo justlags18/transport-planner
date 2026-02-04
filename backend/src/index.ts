@@ -1,6 +1,7 @@
 import "dotenv/config";
 import "./config/env";
 import { createApp } from "./server";
+import { prisma } from "./db";
 import { ensureInitialUser } from "./seed";
 import { startBackofficePoller } from "./jobs/backofficePoller";
 import { startFleetStatusSync } from "./jobs/fleetStatusSync";
@@ -10,6 +11,15 @@ const port = Number(process.env.PORT) || 3001;
 
 const start = async () => {
   try {
+    const normalized = await prisma.deliveryLocation.updateMany({
+      where: {
+        OR: [{ address: null }, { address: "" }],
+      },
+      data: { address: "Unknown" },
+    });
+    if (normalized.count > 0) {
+      console.log(`Normalized ${normalized.count} delivery locations with empty address.`);
+    }
     await ensureInitialUser();
   } catch (err) {
     console.error("Seed failed:", err);
