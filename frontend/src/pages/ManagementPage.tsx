@@ -729,13 +729,28 @@ export const ManagementPage = () => {
       setError("Display name is required.");
       return;
     }
+    const normalizedAddress = locationAddress.trim().replace(/\s+/g, " ").toLowerCase();
+    if (!normalizedAddress) {
+      setError("Address is required.");
+      return;
+    }
+    const duplicate = locations.find((loc) => {
+      const existing = (loc.address ?? "").trim().replace(/\s+/g, " ").toLowerCase();
+      return existing !== "" && existing === normalizedAddress;
+    });
+    if (duplicate) {
+      const ok = window.confirm(
+        `That address already exists (${duplicate.displayName}). Add another anyway?`,
+      );
+      if (!ok) return;
+    }
     setError("");
     setAddingLocation(true);
     try {
       const res = await apiPost<CreateDeliveryLocationResponse>("/api/delivery-locations", {
         displayName,
         destinationKey: locationDestinationKey.trim() || undefined,
-        address: locationAddress.trim() || undefined,
+        address: locationAddress.trim(),
       });
       if (res.ok && res.location) {
         setLocations((prev) => [...prev, res.location!].sort((a, b) => a.displayName.localeCompare(b.displayName)));
