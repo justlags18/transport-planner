@@ -48,6 +48,7 @@ export const DeliveriesPage = () => {
   const [deliveryLocationFilter, setDeliveryLocationFilter] = useState<string>("all");
   const [transportDate, setTransportDate] = useState<string>(() => {
     const d = new Date();
+    d.setDate(d.getDate() + 1); // Plan for the day after (tomorrow)
     return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
   });
   const [loading, setLoading] = useState(true);
